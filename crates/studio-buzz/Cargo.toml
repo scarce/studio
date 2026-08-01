@@ -1,0 +1,10 @@
+[package]
+name = "studio-buzz"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+studio-core = { workspace = true }
+thiserror = { workspace = true }
