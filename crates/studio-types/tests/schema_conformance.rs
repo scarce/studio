@@ -77,6 +77,26 @@ fn rejects_agree_zero_budget() {
 }
 
 #[test]
+fn reserved_buyer_signature_is_accepted_when_present_in_both() {
+    agree(
+        serde_json::json!({
+            "query": "x",
+            "buyer_npub": GOOD_NPUB,
+            "buyer_signature": "sig-recorded-not-verified"
+        }),
+        true,
+    );
+}
+
+#[test]
+fn rejects_agree_empty_buyer_signature() {
+    agree(
+        serde_json::json!({ "query": "x", "buyer_npub": GOOD_NPUB, "buyer_signature": "" }),
+        false,
+    );
+}
+
+#[test]
 fn rejects_agree_unknown_field() {
     agree(
         serde_json::json!({ "query": "x", "buyer_npub": GOOD_NPUB, "surprise": true }),

@@ -13,7 +13,11 @@ const ID_BASE: &str = "https://scarce.studio/schemas";
 
 /// Every published schema, by wire name (= filename stem under `schemas/`).
 pub fn all() -> Vec<(&'static str, serde_json::Value)> {
-    vec![("rfq", rfq())]
+    vec![
+        ("rfq", rfq()),
+        ("quote", quote()),
+        ("gate-policy", gate_policy()),
+    ]
 }
 
 /// Look up one published schema by wire name.
@@ -24,6 +28,19 @@ pub fn get(name: &str) -> Option<serde_json::Value> {
 /// `schemas/rfq.json` — the RFQ submission contract (`POST /api/v1/rfqs`).
 pub fn rfq() -> serde_json::Value {
     finalize("rfq", schema_for!(crate::rfq::NewRfq))
+}
+
+/// `schemas/quote.json` — the quote submission contract
+/// (`POST /api/v1/rfqs/{id}/quote`). Self-contained: the gate policy is
+/// inlined under `$defs` rather than `$ref`'d across files.
+pub fn quote() -> serde_json::Value {
+    finalize("quote", schema_for!(crate::quote::NewQuote))
+}
+
+/// `schemas/gate-policy.json` — the standalone gate-policy contract, for
+/// consumers that exchange policies outside a quote.
+pub fn gate_policy() -> serde_json::Value {
+    finalize("gate-policy", schema_for!(crate::gate::GatePolicy))
 }
 
 /// Stamp the registry-level `$id` onto a generated schema. `$schema`, title,

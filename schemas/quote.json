@@ -1,0 +1,362 @@
+{
+  "$defs": {
+    "Amount": {
+      "additionalProperties": false,
+      "description": "Token amount in minor units of `mint`.",
+      "properties": {
+        "amount": {
+          "description": "Token amount in minor units of `mint`.",
+          "format": "uint64",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "mint": {
+          "description": "SPL mint address (e.g. USDC). Free-form here; enforced at quote time.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "mint"
+      ],
+      "type": "object"
+    },
+    "ChannelParams": {
+      "additionalProperties": false,
+      "description": "MPP session channel parameters the quote commits to.",
+      "properties": {
+        "grace_seconds": {
+          "default": 172800,
+          "description": "Buyer-exit grace window, seconds. Default 172800 (48h) per PLAN.md M2.",
+          "format": "uint64",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "idle_timeout_seconds": {
+          "description": "Idle window after which the studio settles at watermark and closes.\nNo default on purpose: the quote must commit to it explicitly.",
+          "format": "uint64",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "idle_timeout_seconds"
+      ],
+      "type": "object"
+    },
+    "GatePolicy": {
+      "additionalProperties": false,
+      "description": "A project's procedural law (PLAN.md §2.1): state-machine edge → ordered hard gates. Negotiated in the Quote, hash-committed at FUNDED, tamper-evident thereafter. Semantics enforced by the engine, not expressible here: fail-closed evaluation, denial-with-note as recorded history, loud audited overrides. The implementation is additionally stricter than this schema: self-loop edge keys are rejected, agent lists must be duplicate-free, and k must not exceed the number of named agents.",
+      "properties": {
+        "edges": {
+          "additionalProperties": false,
+          "description": "Edge key `FROM->TO` (or wildcard `any->TO`) → ordered gates. A\nconcrete edge is guarded by its exact entry followed by any matching\nwildcard entry — both apply.",
+          "patternProperties": {
+            "^(any|RFQ_CAPTURED|QUOTED|LAPSED|FUNDED|WORKROOM_ACTIVE|BUILDING|DEMOED|ACCEPTED|DELIVERED|OPERATING|CLOSED_BY_BUYER|CLOSED_IDLE)->(RFQ_CAPTURED|QUOTED|LAPSED|FUNDED|WORKROOM_ACTIVE|BUILDING|DEMOED|ACCEPTED|DELIVERED|OPERATING|CLOSED_BY_BUYER|CLOSED_IDLE)$": {
+              "items": {
+                "$ref": "#/$defs/GateSpec"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "edges"
+      ],
+      "title": "Gate policy",
+      "type": "object"
+    },
+    "GateSpec": {
+      "description": "One gate on a state-machine edge (internally tagged on `type`).",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A named principal must approve. Primary mechanism: native Buzz\nworkflow approval tokens; fallback: signed channel message with fixed\ngrammar. The principal is an opaque label (npub or a role like\n`buyer`) — evidence must carry the same label.",
+          "properties": {
+            "escalate_after_seconds": {
+              "description": "Blocked longer than this (from edge eligibility) → escalate to\nthe gate's principal, then the studio owner. Never auto-passes.",
+              "format": "uint64",
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "principal": {
+              "description": "Opaque principal label — an npub or a role like `buyer`.\nEvidence must carry the same label.",
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "human_approval",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "principal"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "k-of-n signed sign-offs from named crew agents.",
+          "properties": {
+            "agents": {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "escalate_after_seconds": {
+              "format": "uint64",
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "k": {
+              "format": "uint32",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "type": {
+              "const": "agent_signoff",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "agents",
+            "k"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A named verifiable predicate (CI green, endpoint answers its 402\nchallenge, schema validation passes). Reruns are natural, so the\nlatest result wins; a stale pass is expired evidence and blocks.",
+          "properties": {
+            "check": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "max_age_seconds": {
+              "format": "uint64",
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "machine_check",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "check"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`PayPort` status: operator record in stub mode, tx signature live.",
+          "properties": {
+            "type": {
+              "const": "payment_evidence",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Minimum elapsed review window since the edge became eligible.",
+          "properties": {
+            "min_seconds": {
+              "format": "uint64",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "type": {
+              "const": "timelock",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "min_seconds"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "MilestoneSpec": {
+      "additionalProperties": false,
+      "description": "One milestone: a demoable, acceptable, priced unit of work.",
+      "properties": {
+        "amount": {
+          "description": "Minor units of the quote's `price.mint`.",
+          "format": "uint64",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "description": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "description",
+        "amount"
+      ],
+      "type": "object"
+    },
+    "PayoutDestination": {
+      "description": "Where settled funds go. v0: direct channel splits, exactly DESIGN.md\n§4.3(a) — escrow pays the crew, no studio custody. The `vault` variant\n(v1, ARCHITECTURE.md §2.3) will slot in beside `splits`.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "splits",
+              "type": "string"
+            },
+            "splits": {
+              "items": {
+                "$ref": "#/$defs/Split"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "splits"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Split": {
+      "additionalProperties": false,
+      "description": "One recipient's share, in basis points. Splits must sum to exactly\n10_000 bps — every lamport of a settlement is accounted for.",
+      "properties": {
+        "bps": {
+          "format": "uint32",
+          "maximum": 10000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "recipient": {
+          "description": "Solana address. Free-form here, like `Amount::mint`; enforced when\nthe live PayPort builds real session terms (M5).",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "recipient",
+        "bps"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://scarce.studio/schemas/quote.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The studio's priced answer to an RFQ (PLAN.md M2, DESIGN.md §3). Wire shape of POST /api/v1/rfqs/{id}/quote; the studio assigns id, created_at, status, and policy_hash. The implementation is additionally stricter than this schema: milestone amounts must sum to price.amount (milestone granularity is the dispute system), split bps must sum to exactly 10000, expires_at must be in the future at issue time, and the gate policy's structural rules (see gate-policy.json) are enforced.",
+  "properties": {
+    "channel": {
+      "$ref": "#/$defs/ChannelParams"
+    },
+    "expires_at": {
+      "description": "Past this instant the quote is LAPSED and cannot be accepted.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "gate_policy": {
+      "$ref": "#/$defs/GatePolicy",
+      "default": {
+        "edges": {
+          "ACCEPTED->DELIVERED": [
+            {
+              "check": "endpoint-live",
+              "type": "machine_check"
+            },
+            {
+              "escalate_after_seconds": 172800,
+              "principal": "buyer",
+              "type": "human_approval"
+            },
+            {
+              "min_seconds": 86400,
+              "type": "timelock"
+            }
+          ],
+          "DEMOED->ACCEPTED": [
+            {
+              "escalate_after_seconds": 172800,
+              "principal": "buyer",
+              "type": "human_approval"
+            }
+          ],
+          "QUOTED->FUNDED": [
+            {
+              "type": "payment_evidence"
+            }
+          ],
+          "any->CLOSED_BY_BUYER": [
+            {
+              "min_seconds": 172800,
+              "type": "timelock"
+            }
+          ]
+        }
+      },
+      "description": "Defaults from studio config; buyers may strengthen per-project."
+    },
+    "milestones": {
+      "items": {
+        "$ref": "#/$defs/MilestoneSpec"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "payout_destination": {
+      "$ref": "#/$defs/PayoutDestination"
+    },
+    "price": {
+      "$ref": "#/$defs/Amount",
+      "description": "Total engagement price. Must equal the sum of milestone amounts."
+    },
+    "timeline": {
+      "description": "Human-negotiated schedule description (e.g. \"3 weeks, weekly demos\").",
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "price",
+    "milestones",
+    "timeline",
+    "payout_destination",
+    "channel",
+    "expires_at"
+  ],
+  "title": "Quote submission",
+  "type": "object"
+}

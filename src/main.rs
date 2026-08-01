@@ -24,7 +24,12 @@ async fn main() -> anyhow::Result<()> {
         .await
         .with_context(|| format!("opening projection store at {}", config.db_url))?;
 
-    let app = studio_api::router(Arc::new(AppState { db }));
+    spawn_quote_expiry_sweep(db.clone(), config.sweep_interval_seconds);
+
+    let app = studio_api::router(Arc::new(AppState {
+        db,
+        studio_token: config.studio_token,
+    }));
     let listener = tokio::net::TcpListener::bind(&config.bind)
         .await
         .with_context(|| format!("binding {}", config.bind))?;
@@ -36,6 +41,24 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("scarced stopped");
     Ok(())
+}
+
+/// QUOTED → LAPSED, on a timer (PLAN.md M2). Reads derive LAPSED past
+/// expiry on their own; the sweep stamps the projection rows so the ledger
+/// itself carries the transition timestamps.
+fn spawn_quote_expiry_sweep(db: sqlx::SqlitePool, interval_seconds: u64) {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(interval_seconds));
+        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            tick.tick().await;
+            match studio_store::quotes::sweep_lapsed(&db, chrono::Utc::now()).await {
+                Ok(0) => {}
+                Ok(lapsed) => tracing::info!(lapsed, "quote expiry sweep"),
+                Err(e) => tracing::error!(error = %e, "quote expiry sweep failed"),
+            }
+        }
+    });
 }
 
 async fn shutdown_signal() {

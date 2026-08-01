@@ -22,6 +22,9 @@ pub mod endpoints;
 /// rebuildable, never authoritative.
 pub struct AppState {
     pub db: SqlitePool,
+    /// Bearer token for studio-authenticated routes (quote issuance).
+    /// `None` disables those routes — fail-closed, never fail-open.
+    pub studio_token: Option<String>,
 }
 
 pub fn router(state: Arc<AppState>) -> Router {
@@ -39,6 +42,10 @@ pub fn router(state: Arc<AppState>) -> Router {
             post(endpoints::create_rfq::handler).get(endpoints::list_rfqs::handler),
         )
         .route("/api/v1/rfqs/{id}", get(endpoints::get_rfq::handler))
+        .route(
+            "/api/v1/rfqs/{id}/quote",
+            post(endpoints::create_quote::handler).get(endpoints::get_quote::handler),
+        )
         .with_state(state)
 }
 
@@ -75,7 +82,10 @@ mod tests {
     #[tokio::test]
     async fn healthz_returns_200_with_live_store() {
         let db = studio_store::open("sqlite::memory:").await.unwrap();
-        let app = router(Arc::new(AppState { db }));
+        let app = router(Arc::new(AppState {
+            db,
+            studio_token: None,
+        }));
 
         let response = app
             .oneshot(
@@ -97,7 +107,10 @@ mod tests {
     async fn healthz_returns_503_when_store_is_gone() {
         let db = studio_store::open("sqlite::memory:").await.unwrap();
         db.close().await;
-        let app = router(Arc::new(AppState { db }));
+        let app = router(Arc::new(AppState {
+            db,
+            studio_token: None,
+        }));
 
         let response = app
             .oneshot(

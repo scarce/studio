@@ -45,6 +45,15 @@
       "pattern": "^npub1[02-9ac-hj-np-z]{58}$",
       "type": "string"
     },
+    "buyer_signature": {
+      "default": null,
+      "description": "Reserved for the buyer-authored upgrade path (archy, 2026-08-01 M1\nboundary): a SIWX-style signature over the submission by\n`buyer_npub`, making the RFQ counterparty-signed substrate instead\nof studio self-attestation (ARCHITECTURE.md §1). Recorded, not yet\nverified — like the delivery attestation field (PLAN.md §0).",
+      "minLength": 1,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "competition": {
       "default": [],
       "description": "Competing or adjacent offerings the buyer knows about.",

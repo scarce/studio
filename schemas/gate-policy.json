@@ -1,0 +1,159 @@
+{
+  "$defs": {
+    "GateSpec": {
+      "description": "One gate on a state-machine edge (internally tagged on `type`).",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A named principal must approve. Primary mechanism: native Buzz\nworkflow approval tokens; fallback: signed channel message with fixed\ngrammar. The principal is an opaque label (npub or a role like\n`buyer`) — evidence must carry the same label.",
+          "properties": {
+            "escalate_after_seconds": {
+              "description": "Blocked longer than this (from edge eligibility) → escalate to\nthe gate's principal, then the studio owner. Never auto-passes.",
+              "format": "uint64",
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "principal": {
+              "description": "Opaque principal label — an npub or a role like `buyer`.\nEvidence must carry the same label.",
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "human_approval",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "principal"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "k-of-n signed sign-offs from named crew agents.",
+          "properties": {
+            "agents": {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "escalate_after_seconds": {
+              "format": "uint64",
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "k": {
+              "format": "uint32",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "type": {
+              "const": "agent_signoff",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "agents",
+            "k"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A named verifiable predicate (CI green, endpoint answers its 402\nchallenge, schema validation passes). Reruns are natural, so the\nlatest result wins; a stale pass is expired evidence and blocks.",
+          "properties": {
+            "check": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "max_age_seconds": {
+              "format": "uint64",
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "machine_check",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "check"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`PayPort` status: operator record in stub mode, tx signature live.",
+          "properties": {
+            "type": {
+              "const": "payment_evidence",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Minimum elapsed review window since the edge became eligible.",
+          "properties": {
+            "min_seconds": {
+              "format": "uint64",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "type": {
+              "const": "timelock",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "min_seconds"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "$id": "https://scarce.studio/schemas/gate-policy.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A project's procedural law (PLAN.md §2.1): state-machine edge → ordered hard gates. Negotiated in the Quote, hash-committed at FUNDED, tamper-evident thereafter. Semantics enforced by the engine, not expressible here: fail-closed evaluation, denial-with-note as recorded history, loud audited overrides. The implementation is additionally stricter than this schema: self-loop edge keys are rejected, agent lists must be duplicate-free, and k must not exceed the number of named agents.",
+  "properties": {
+    "edges": {
+      "additionalProperties": false,
+      "description": "Edge key `FROM->TO` (or wildcard `any->TO`) → ordered gates. A\nconcrete edge is guarded by its exact entry followed by any matching\nwildcard entry — both apply.",
+      "patternProperties": {
+        "^(any|RFQ_CAPTURED|QUOTED|LAPSED|FUNDED|WORKROOM_ACTIVE|BUILDING|DEMOED|ACCEPTED|DELIVERED|OPERATING|CLOSED_BY_BUYER|CLOSED_IDLE)->(RFQ_CAPTURED|QUOTED|LAPSED|FUNDED|WORKROOM_ACTIVE|BUILDING|DEMOED|ACCEPTED|DELIVERED|OPERATING|CLOSED_BY_BUYER|CLOSED_IDLE)$": {
+          "items": {
+            "$ref": "#/$defs/GateSpec"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "edges"
+  ],
+  "title": "Gate policy",
+  "type": "object"
+}
