@@ -40,7 +40,6 @@ body {
 }
 .logo {
   border-radius: 14px;
-  filter: grayscale(1) contrast(1.05) drop-shadow(0 0 24px rgba(255, 255, 255, 0.1));
 }
 .wordmark {
   margin: 0;
