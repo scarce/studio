@@ -264,6 +264,11 @@ buyer agent          studio-api        orchestrator          Solana             
 - **Buzz access:** shell out to / link the `buzz` CLI surface the harness
   already proves out (create, add-member, canvas, messages, workflows).
 - **No vault program in v0** (§2.3): static crew, direct channel splits.
+- **Build guidelines are a separate, binding document.** `GUIDELINES.md`
+  governs how the studio builds anything (Rust-only backends per the SF
+  skills, AI-first core-crate + ACP/MCP/MPP-gated-HTTP shape via
+  `solana-pay-kit`, the `agents/` persona registry loaded at boot, pinned
+  `skills.toml`). The studio itself conforms to it.
 - **Everything in DESIGN.md §10 stands**; this document adds the service
   skeleton around that first hand-run engagement.
 

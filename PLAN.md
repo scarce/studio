@@ -32,7 +32,9 @@ breaking change later.
 ## 1. Repo layout
 
 Rust, per SF conventions (workspace, axum, tokio, sqlx/SQLite, thiserror,
-tracing). One binary; split later only if scale demands.
+tracing). One binary; split later only if scale demands. House rules for
+*everything the studio builds* — languages, skills, AI-first project shape —
+live in `GUIDELINES.md`; this section is only the studio's own tree.
 
 ```
 scarce-studio/
@@ -46,7 +48,11 @@ scarce-studio/
 ├── src/main.rs                # `scarced`: HTTP server + orchestrator loop
 ├── schemas/                   # rfq.json, quote.json, escrow-terms.json,
 │                              # gate-policy.json, delivery-attestation.json
-├── roster.toml                # v0 crew: npub, skill tags, day rate
+├── agents/                    # roster registry: <name>.persona.md, Buzz
+│                              # persona format, loaded at boot (GUIDELINES §3)
+├── skills.toml                # pinned skill sources + defaults (GUIDELINES §4)
+├── roster.toml                # crew economics keyed by persona name:
+│                              # npub, skill tags, day rate
 └── justfile                   # build, test, lint, run, integration-test
 ```
 

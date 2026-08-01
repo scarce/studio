@@ -6,7 +6,10 @@ is a gated pay.sh endpoint the buyer's own agent then consumes.
 
 Read in order: [DESIGN.md](DESIGN.md) (why it works),
 [ARCHITECTURE.md](ARCHITECTURE.md) (system shape),
-[PLAN.md](PLAN.md) (milestones M0→M6).
+[PLAN.md](PLAN.md) (milestones M0→M6),
+[GUIDELINES.md](GUIDELINES.md) (how the studio builds anything: Rust-only
+backends per the SF skills, AI-first project shape, agent registry,
+`skills.toml`).
 
 **Invariant:** the API holds no authoritative state. Every fact it serves is a
 projection of signed Nostr events or on-chain state; every state transition
