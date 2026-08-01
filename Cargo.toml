@@ -1,0 +1,62 @@
+[package]
+name = "scarce-studio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "scarced"
+path = "src/main.rs"
+
+[dependencies]
+studio-api = { path = "crates/studio-api" }
+studio-store = { path = "crates/studio-store" }
+
+anyhow = { workspace = true }
+axum = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[workspace]
+members = [
+    "crates/studio-core",
+    "crates/studio-store",
+    "crates/studio-buzz",
+    "crates/studio-pay",
+    "crates/studio-api",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.88.0"
+
+[workspace.dependencies]
+# Runtime — versions track ~/Coding/buzz workspace pins so the Buzz crates
+# (buzz-sdk, buzz-core, buzz-ws-client, buzz-workflow) resolve cleanly in M3.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "signal"] }
+axum = { version = "0.8", features = ["macros"] }
+
+# Storage — SQLite projection, rebuildable by design (ARCHITECTURE.md §1)
+sqlx = { version = "0.9", features = ["runtime-tokio", "tls-rustls", "sqlite", "migrate", "chrono", "json"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Errors + observability
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Intra-workspace
+studio-core = { path = "crates/studio-core" }
+studio-store = { path = "crates/studio-store" }
+studio-buzz = { path = "crates/studio-buzz" }
+studio-pay = { path = "crates/studio-pay" }
+studio-api = { path = "crates/studio-api" }
