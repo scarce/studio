@@ -86,6 +86,12 @@ agent consumes a capability today (as a teammate, as a tool, as a paid API);
 the core/adapters split keeps them honest — one implementation, three doors,
 no logic in any door.
 
+Terminology (per ludovic, 2026-08-01): a deliverable of this shape is a
+**micro-agent** — not an app, but a deployed unit with a small, enumerated
+set of gated endpoints. The term is load-bearing for where the studio is
+headed: an economy of micro-agents transacting with each other
+(DESIGN.md §8.1 tracks RFQ negotiation between them).
+
 The studio itself is the reference implementation of this shape
 (`studio-core` + port crates + `scarced`); deviations in a deliverable need
 the same justification a GatePolicy weakening would need — that is, they

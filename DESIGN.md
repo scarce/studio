@@ -186,6 +186,45 @@ a routing decision, not a partnership. scarce's durable advantage is then its
 demand data and reputation, which is the correct kind of moat for a protocol
 company to hold: earned, not extracted.
 
+### 8.1 Tracked, no action: RFQ negotiation between micro-agents
+
+*(per ludovic, 2026-08-01 — record the direction; build nothing yet)*
+
+Today an RFQ meets exactly one quote, take-it-or-leave-it. The tracked end
+state is that a new RFQ opens a **negotiation surface**: offers and
+counteroffers exchanged agent-to-agent until one is accepted — because the
+economy this serves is one of **deployed micro-agents** (the term going
+forward: nobody deploys "apps"; they deploy micro-agents, each a small,
+enumerated set of gated endpoints — exactly the deliverable shape
+GUIDELINES.md §2 already mandates). Both sides of a negotiation are
+micro-agents: the buyer's agent that missed the catalog, and the studio (or
+studios) bidding to fill the miss.
+
+What this decomposes into, when it is picked up:
+
+1. **A bid is just a quote that competes.** The Quote schema (§8.2) already
+   carries price, milestones, `expires_at`, and a gate policy; negotiation
+   generalizes it from *the* quote to *a* bid among several, plus a
+   `supersedes` reference for counteroffers. Accept then cites the winning
+   bid's event id — the accept endpoint's shape survives unchanged.
+2. **Negotiation history is substrate, like everything else.** Offers and
+   counters are signed events attached to the RFQ; the projection invariant
+   (ARCHITECTURE.md §1) extends to them for free, and the negotiation
+   transcript becomes replayable evidence — which matters the day a dispute
+   asks "what was actually offered?"
+3. **Multi-party bidding is the deferred multi-studio routing** (Non-goals;
+   PLAN.md §0) arriving through the front door: several studios speaking RFQ
+   bid on one demand record. The seam is already protocol-shaped; negotiation
+   is what makes the routing decision *priced* rather than configured.
+4. **Layering:** a2a-style protocols are candidates for the conversational
+   negotiation layer; MPP/x402 remain the settlement layer underneath.
+   Nothing about negotiation touches escrow semantics — a session channel
+   still opens only when one bid is accepted (§4).
+
+The only thing worth doing early is keeping the seam cheap: quotes are
+already versioned, expiring objects; nothing in the current schemas
+forecloses "many quotes per RFQ, each referencing what it counters."
+
 ## 9. Open decisions (need ludovic's call)
 
 1. **Commission vs co-op ownership.** Does the buyer own 100% of the shipped
