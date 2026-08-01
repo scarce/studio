@@ -17,5 +17,5 @@ pub use gate::{GatePolicy, GateSpec};
 pub use quote::{
     ChannelParams, MilestoneSpec, NewQuote, PayoutDestination, Quote, QuoteStatus, Split,
 };
-pub use rfq::{Amount, FieldError, NewRfq, Rfq};
+pub use rfq::{validate_npub, Amount, FieldError, NewRfq, Rfq};
 pub use state::{Edge, EdgePattern, ProjectState};

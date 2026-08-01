@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 studio-api = { path = "crates/studio-api" }
+studio-registry = { path = "crates/studio-registry" }
 studio-buzz = { path = "crates/studio-buzz" }
 studio-store = { path = "crates/studio-store" }
 studio-types = { path = "crates/studio-types" }
@@ -39,6 +40,7 @@ members = [
     "crates/studio-buzz",
     "crates/studio-pay",
     "crates/studio-api",
+    "crates/studio-registry",
 ]
 resolver = "2"
 
@@ -77,6 +79,10 @@ figment = { version = "0.10", features = ["yaml", "env"] }
 # registry; bump deliberately, in lockstep with the relay we run against.
 buzz-sdk = { git = "https://github.com/block/buzz", rev = "22be8bb35177e27efc2dca2534df9a8dd871eae0" }
 buzz-ws-client = { git = "https://github.com/block/buzz", rev = "22be8bb35177e27efc2dca2534df9a8dd871eae0" }
+# Registry: agents/<name>.persona.md is Buzz's persona format, verbatim
+# (GUIDELINES.md §3) — same pin as the other buzz crates.
+buzz-persona = { git = "https://github.com/block/buzz", rev = "22be8bb35177e27efc2dca2534df9a8dd871eae0" }
+toml = "1"
 nostr = "0.44"
 # WSS needs a process-level rustls CryptoProvider; every binary entry point
 # installs ring explicitly (same pin/reason as buzz-cli) — relying on feature
@@ -96,3 +102,4 @@ studio-store = { path = "crates/studio-store" }
 studio-buzz = { path = "crates/studio-buzz" }
 studio-pay = { path = "crates/studio-pay" }
 studio-api = { path = "crates/studio-api" }
+studio-registry = { path = "crates/studio-registry" }

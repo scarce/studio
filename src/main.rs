@@ -34,6 +34,16 @@ async fn main() -> anyhow::Result<()> {
     let config = config::Config::load(args.config.as_deref())?;
     tracing::info!(bind = %config.bind, db = %config.db, "scarced starting");
 
+    // Registry: fail-closed. A roster or skills file that does not parse is
+    // a scarced that does not start (GUIDELINES.md §3.2).
+    let registry = studio_registry::load(std::path::Path::new(&config.registry_dir))
+        .with_context(|| format!("loading agent registry from {}", config.registry_dir))?;
+    tracing::info!(
+        agents = %registry.agents.keys().cloned().collect::<Vec<_>>().join(", "),
+        skills = registry.skills.skills.len(),
+        "agent registry loaded"
+    );
+
     let db = studio_store::open(&config.db)
         .await
         .with_context(|| format!("opening projection store at {}", config.db))?;

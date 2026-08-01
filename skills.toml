@@ -1,0 +1,19 @@
+# skills.toml — which conventions govern the builds (GUIDELINES.md §4).
+# Personas reference skills by slug; this file says from where, at what
+# version, with what config. Revs are pinned commits — never a branch: an
+# unpinned skill is an unpinned compiler. Projects may strengthen, never
+# weaken (the same rule the GatePolicy carries).
+
+[skills.sf-rust]
+source = "github:solana-foundation/ai-skills"
+path   = "sf-rust-skill"
+rev    = "3875492f6f70fc694bff64167fe0a0d14f346503"
+
+[skills.sf-tech-docs]
+source = "github:solana-foundation/ai-skills"
+path   = "sf-tech-docs-writer-skill"
+rev    = "3875492f6f70fc694bff64167fe0a0d14f346503"
+
+[defaults]
+backend = ["sf-rust"]
+docs    = ["sf-tech-docs"]
