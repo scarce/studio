@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 studio-api = { path = "crates/studio-api" }
+studio-core = { path = "crates/studio-core" }
 studio-registry = { path = "crates/studio-registry" }
 studio-buzz = { path = "crates/studio-buzz" }
 studio-store = { path = "crates/studio-store" }
@@ -83,6 +84,10 @@ buzz-ws-client = { git = "https://github.com/block/buzz", rev = "22be8bb35177e27
 # (GUIDELINES.md §3) — same pin as the other buzz crates.
 buzz-persona = { git = "https://github.com/block/buzz", rev = "22be8bb35177e27efc2dca2534df9a8dd871eae0" }
 toml = "1"
+# Embedded project page (/project/{id}) — assets checked in under web/,
+# compiled into the binary (same include_dir mechanism as pay's web-ui).
+include_dir = "0.7"
+mime_guess = { version = "2.0", default-features = false, features = ["rev-mappings"] }
 nostr = "0.44"
 # WSS needs a process-level rustls CryptoProvider; every binary entry point
 # installs ring explicitly (same pin/reason as buzz-cli) — relying on feature

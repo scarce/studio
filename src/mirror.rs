@@ -15,6 +15,7 @@
 use sqlx::SqlitePool;
 use studio_api::LifecycleBeat;
 use studio_buzz::BuzzPort;
+use studio_core::project::workroom_name;
 use studio_types::{Quote, Rfq};
 use tokio::sync::mpsc::UnboundedReceiver;
 use uuid::Uuid;
@@ -23,11 +24,12 @@ pub fn spawn<B: BuzzPort>(
     buzz: B,
     ops_channel: Uuid,
     db: SqlitePool,
+    public_url: String,
     mut rx: UnboundedReceiver<LifecycleBeat>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         while let Some(beat) = rx.recv().await {
-            if let Err(e) = mirror_one(&buzz, ops_channel, &db, beat).await {
+            if let Err(e) = mirror_one(&buzz, ops_channel, &db, &public_url, beat).await {
                 tracing::error!(error = %e, "lifecycle beat not mirrored to buzz");
             }
         }
@@ -39,6 +41,7 @@ async fn mirror_one<B: BuzzPort>(
     buzz: &B,
     ops_channel: Uuid,
     db: &SqlitePool,
+    public_url: &str,
     beat: LifecycleBeat,
 ) -> anyhow::Result<()> {
     match beat {
@@ -87,12 +90,16 @@ async fn mirror_one<B: BuzzPort>(
                 Err(e) => tracing::error!(error = %e, rfq_id = %rfq.id,
                     "buyer npub does not decode; not added to workroom"),
             }
-            buzz.post(created.channel_id, &contract_post(&rfq, &quote))
-                .await?;
+            let project_url = format!("{public_url}/project/{}", rfq.id);
+            buzz.post(
+                created.channel_id,
+                &contract_post(&rfq, &quote, &project_url),
+            )
+            .await?;
             buzz.post(
                 ops_channel,
                 &format!(
-                    "workroom `{name}` opened for rfq `{}` — channel {} (create event `{}`)",
+                    "workroom `{name}` opened for rfq `{}` — channel {} (create event `{}`)\nproject page: {project_url}",
                     rfq.id, created.channel_id, created.create_event_id
                 ),
             )
@@ -109,25 +116,6 @@ fn workroom_about(rfq: &Rfq, quote: &Quote) -> String {
         "Workroom for rfq {} — {} · {} (mint {}) · {}",
         rfq.id, rfq.query, quote.price.amount, quote.price.mint, quote.timeline
     )
-}
-
-/// `proj-<slug>-<shortid>`: slug from the demand query, short id for
-/// uniqueness (channel names are not unique on the relay; the uuid is).
-pub fn workroom_name(rfq: &Rfq) -> String {
-    let slug: String = rfq
-        .query
-        .to_lowercase()
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .split('-')
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("-");
-    let slug = slug.chars().take(32).collect::<String>();
-    let slug = slug.trim_end_matches('-');
-    let short = rfq.id.chars().take(8).collect::<String>();
-    format!("proj-{slug}-{short}")
 }
 
 fn budget_line(rfq: &Rfq) -> String {
@@ -174,7 +162,7 @@ fn accepted_post(rfq: &Rfq, quote: &Quote) -> String {
     )
 }
 
-fn contract_post(rfq: &Rfq, quote: &Quote) -> String {
+fn contract_post(rfq: &Rfq, quote: &Quote, project_url: &str) -> String {
     let milestones = quote
         .milestones
         .iter()
@@ -183,8 +171,8 @@ fn contract_post(rfq: &Rfq, quote: &Quote) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     format!(
-        "🚀 contract starting — rfq `{}`\n> {}\n\nmilestones:\n{}\n\ntimeline: {} · policy `{}`\nThis channel is the workroom: demos, decisions, and delivery land here.",
-        rfq.id, rfq.query, milestones, quote.timeline, quote.policy_hash,
+        "🚀 contract starting — rfq `{}`\n> {}\n\nmilestones:\n{}\n\ntimeline: {} · policy `{}`\nproject page: {}\nThis channel is the workroom: demos, decisions, and delivery land here.",
+        rfq.id, rfq.query, milestones, quote.timeline, quote.policy_hash, project_url,
     )
 }
 
@@ -271,6 +259,7 @@ mod tests {
             &buzz,
             ops,
             &db,
+            "https://scarce.sh",
             LifecycleBeat::QuoteAccepted {
                 rfq: Box::new(rfq()),
                 quote: Box::new(quote()),
@@ -291,8 +280,11 @@ mod tests {
             matches!(&calls[2], MockCall::AddMember { channel_id, pubkey_hex }
             if *channel_id != ops && *pubkey_hex == expected_buyer)
         );
-        // contract post lands in the NEW channel, not ops
-        assert!(matches!(&calls[3], MockCall::Post { channel_id, .. } if *channel_id != ops));
+        // contract post lands in the NEW channel, not ops, and carries the
+        // public project page URL the buyer can share
+        assert!(matches!(&calls[3], MockCall::Post { channel_id, content }
+            if *channel_id != ops
+            && content.contains("https://scarce.sh/project/9e342a83-429b-4887-9cae-6ddecd78f7c5")));
         assert!(matches!(&calls[4], MockCall::Post { channel_id, .. } if *channel_id == ops));
 
         // evidence row: channel-create event id recorded
@@ -308,6 +300,7 @@ mod tests {
             &buzz,
             ops,
             &db,
+            "https://scarce.sh",
             LifecycleBeat::QuoteAccepted {
                 rfq: Box::new(rfq()),
                 quote: Box::new(quote()),
@@ -330,6 +323,7 @@ mod tests {
             &buzz,
             ops,
             &db,
+            "https://scarce.sh",
             LifecycleBeat::DemandCaptured {
                 rfq: Box::new(rfq()),
             },
@@ -340,6 +334,7 @@ mod tests {
             &buzz,
             ops,
             &db,
+            "https://scarce.sh",
             LifecycleBeat::QuoteIssued {
                 quote: Box::new(quote()),
             },

@@ -50,6 +50,25 @@ async fn main() -> anyhow::Result<()> {
 
     spawn_quote_expiry_sweep(db.clone(), config.sweep_seconds);
 
+    // Public base URL for /project/{id} links; defaults to the bind address
+    // for dev, `public_url: https://scarce.sh` in production config.
+    let public_url = config
+        .public_url
+        .clone()
+        .unwrap_or_else(|| format!("http://{}", config.bind))
+        .trim_end_matches('/')
+        .to_string();
+    // The page's "open in Buzz" link — the community's https host, derived
+    // from the relay URL (wss://host -> https://host).
+    let community_web_url = config.buzz.as_ref().map(|b| {
+        format!(
+            "https://{}",
+            b.relay_url
+                .trim_start_matches("wss://")
+                .trim_start_matches("ws://")
+        )
+    });
+
     // Lifecycle mirror: config-gated. Fail-closed at startup — a bad key or
     // channel id refuses to boot rather than silently running ledger-only.
     let lifecycle = match &config.buzz {
@@ -66,7 +85,7 @@ async fn main() -> anyhow::Result<()> {
                 studio_pubkey = %port.public_key_hex(),
                 "buzz lifecycle mirror enabled");
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-            mirror::spawn(port, ops_channel, db.clone(), rx);
+            mirror::spawn(port, ops_channel, db.clone(), public_url.clone(), rx);
             Some(tx)
         }
         None => {
@@ -79,6 +98,8 @@ async fn main() -> anyhow::Result<()> {
         db,
         studio_token: config.studio_token,
         lifecycle,
+        public_url,
+        community_web_url,
     }));
     let listener = tokio::net::TcpListener::bind(&config.bind)
         .await

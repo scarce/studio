@@ -8,12 +8,14 @@
 //! machines and orchestration logic stay in `studio-core`.
 
 pub mod gate;
+pub mod project;
 pub mod quote;
 pub mod rfq;
 pub mod schemas;
 pub mod state;
 
 pub use gate::{GatePolicy, GateSpec};
+pub use project::{Project, ProjectLinks, ProjectMilestone, ProjectQuote, ProjectWorkroom};
 pub use quote::{
     ChannelParams, MilestoneSpec, NewQuote, PayoutDestination, Quote, QuoteStatus, Split,
 };

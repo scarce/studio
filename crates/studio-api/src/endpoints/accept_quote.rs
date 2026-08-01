@@ -84,7 +84,10 @@ pub async fn handler(
         }
     }
 
-    (StatusCode::OK, Json(serde_json::json!(accepted)))
+    // The accepted quote plus the shareable page — the buyer's next click.
+    let mut body = serde_json::json!(accepted);
+    body["project_url"] = serde_json::json!(format!("{}/project/{rfq_id}", state.public_url));
+    (StatusCode::OK, Json(body))
 }
 
 fn refuse(

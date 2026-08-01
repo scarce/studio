@@ -19,6 +19,8 @@ async fn app_with_token(token: Option<&str>) -> axum::Router {
         db,
         studio_token: token.map(String::from),
         lifecycle: None,
+        public_url: "https://scarce.sh".into(),
+        community_web_url: Some("https://scarce.communities.buzz.xyz".into()),
     }))
 }
 
@@ -338,6 +340,8 @@ async fn lifecycle_beats_are_emitted_in_order() {
         db,
         studio_token: Some(TOKEN.into()),
         lifecycle: Some(tx),
+        public_url: "https://scarce.sh".into(),
+        community_web_url: Some("https://scarce.communities.buzz.xyz".into()),
     }));
 
     let rfq_id = capture_rfq(&app).await;
