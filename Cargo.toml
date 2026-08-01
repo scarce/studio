@@ -21,6 +21,7 @@ tracing-subscriber = { workspace = true }
 
 [workspace]
 members = [
+    "crates/studio-types",
     "crates/studio-core",
     "crates/studio-store",
     "crates/studio-buzz",
@@ -44,9 +45,15 @@ axum = { version = "0.8", features = ["macros"] }
 # Storage — SQLite projection, rebuildable by design (ARCHITECTURE.md §1)
 sqlx = { version = "0.9", features = ["runtime-tokio", "tls-rustls", "sqlite", "migrate", "chrono", "json"] }
 
-# Serialization
+# Serialization — schemars pin matches the buzz workspace (version = "1")
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+schemars = "1"
+
+# Domain
+bech32 = "0.11"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
 
 # Errors + observability
 anyhow = "1"
@@ -55,6 +62,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Intra-workspace
+studio-types = { path = "crates/studio-types" }
 studio-core = { path = "crates/studio-core" }
 studio-store = { path = "crates/studio-store" }
 studio-buzz = { path = "crates/studio-buzz" }

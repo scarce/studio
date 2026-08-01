@@ -1,10 +1,19 @@
 //! HTTP surface of `scarced` — serves projections, never asserts a state it
-//! cannot evidence (ARCHITECTURE.md §1). Routes accrete per milestone; M0 is
-//! `GET /healthz` only.
+//! cannot evidence (ARCHITECTURE.md §1). Routes accrete per milestone under
+//! `/api/v1`; the surface is self-describing (`GET /api/v1` lists endpoints,
+//! `GET /api/v1/schemas/{name}` serves the generated JSON Schemas). Handlers
+//! stay thin: parse, call `studio-core`, serialize — the logic they invoke is
+//! reusable from a CLI or MCP surface without HTTP.
 
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post},
+    Json, Router,
+};
 use sqlx::SqlitePool;
 
 pub mod endpoints;
@@ -16,8 +25,20 @@ pub struct AppState {
 }
 
 pub fn router(state: Arc<AppState>) -> Router {
+    // `/healthz` stays unversioned (ops convention); everything else is
+    // `/api/v1` so the contract can evolve without breaking callers.
     Router::new()
         .route("/healthz", get(healthz))
+        .route("/api/v1", get(endpoints::api_index::handler))
+        .route(
+            "/api/v1/schemas/{name}",
+            get(endpoints::get_schema::handler),
+        )
+        .route(
+            "/api/v1/rfqs",
+            post(endpoints::create_rfq::handler).get(endpoints::list_rfqs::handler),
+        )
+        .route("/api/v1/rfqs/{id}", get(endpoints::get_rfq::handler))
         .with_state(state)
 }
 

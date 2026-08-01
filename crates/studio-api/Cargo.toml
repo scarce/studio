@@ -6,13 +6,17 @@ license.workspace = true
 publish = false
 
 [dependencies]
+studio-core = { workspace = true }
 studio-store = { workspace = true }
+studio-types = { workspace = true }
 
 axum = { workspace = true }
+chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 tracing = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
