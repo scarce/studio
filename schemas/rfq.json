@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scarce.studio/schemas/rfq.json",
+  "title": "RFQ submission",
+  "description": "A demand record captured from a pay.sh catalog miss. Capture is deliberately frictionless: only the query and the buyer identity are required (DESIGN.md §2 — never tax the order book). This is the wire shape of POST /rfqs; the studio assigns id and created_at.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["query", "buyer_npub"],
+  "properties": {
+    "query": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The failed catalog search — the demand signal itself."
+    },
+    "product": {
+      "type": ["string", "null"],
+      "description": "What the buyer wants built."
+    },
+    "monetization": {
+      "type": ["string", "null"],
+      "description": "How the buyer thinks the artifact should be monetized."
+    },
+    "competition": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "Competing or adjacent offerings the buyer knows about."
+    },
+    "budget_ceiling": {
+      "anyOf": [{ "$ref": "#/$defs/amount" }, { "type": "null" }],
+      "description": "Budget signal, not a commitment."
+    },
+    "buyer_npub": {
+      "type": "string",
+      "pattern": "^npub1[02-9ac-hj-np-z]{58}$",
+      "description": "Buyer identity — the Nostr npub it will later pay with."
+    }
+  },
+  "$defs": {
+    "amount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amount", "mint"],
+      "properties": {
+        "amount": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Token amount in minor units of mint."
+        },
+        "mint": {
+          "type": "string",
+          "minLength": 1,
+          "description": "SPL mint address (e.g. USDC)."
+        }
+      }
+    }
+  }
+}

@@ -4,7 +4,13 @@
 
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post},
+    Json, Router,
+};
 use sqlx::SqlitePool;
 
 pub mod endpoints;
@@ -18,6 +24,11 @@ pub struct AppState {
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
+        .route(
+            "/rfqs",
+            post(endpoints::create_rfq::handler).get(endpoints::list_rfqs::handler),
+        )
+        .route("/rfqs/{id}", get(endpoints::get_rfq::handler))
         .with_state(state)
 }
 
