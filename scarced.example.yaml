@@ -1,0 +1,19 @@
+# scarced config — `scarced --config scarced.yaml`. Every key can be
+# overridden by a SCARCED_* env var (nested keys join with `__`:
+# SCARCED_BUZZ__RELAY_URL). Dev values only; real secrets come from env.
+
+bind: 127.0.0.1:7380
+db: sqlite://scarced.db
+studio_token: dev-token
+sweep_seconds: 30
+
+# Buzz community the studio operates in. All three keys are required when
+# the section is present; omit the whole section for a ledger-only run.
+buzz:
+  relay_url: wss://scarce.communities.buzz.xyz
+  # Studio identity (hex or nsec). Dev only here — use the env var
+  # SCARCED_BUZZ__PRIVATE_KEY in anything that is not a laptop.
+  private_key: REPLACE_WITH_STUDIO_KEY
+  # Lifecycle mirror target: demand / quote / accepted beats post here
+  # (private channel — members only).
+  ops_channel: cdc47f86-91d3-4485-945a-75266269918a

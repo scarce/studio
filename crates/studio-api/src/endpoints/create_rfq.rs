@@ -45,6 +45,9 @@ pub async fn handler(
     match studio_store::rfqs::insert(&state.db, &rfq).await {
         Ok(()) => {
             tracing::info!(rfq_id = %rfq.id, buyer = %rfq.buyer_npub, "rfq captured");
+            state.emit(crate::LifecycleBeat::DemandCaptured {
+                rfq: Box::new(rfq.clone()),
+            });
             (StatusCode::CREATED, Json(serde_json::json!(rfq)))
         }
         Err(e) => {

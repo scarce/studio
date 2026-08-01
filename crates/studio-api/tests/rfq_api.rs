@@ -12,7 +12,11 @@ const GOOD_NPUB: &str = "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0
 
 async fn app() -> axum::Router {
     let db = studio_store::open("sqlite::memory:").await.unwrap();
-    router(Arc::new(AppState { db }))
+    router(Arc::new(AppState {
+        db,
+        studio_token: None,
+        lifecycle: None,
+    }))
 }
 
 async fn send(

@@ -41,6 +41,14 @@ pub struct NewRfq {
     /// Buyer identity — the Nostr npub it will later pay with.
     #[schemars(regex(pattern = NPUB_PATTERN))]
     pub buyer_npub: String,
+    /// Reserved for the buyer-authored upgrade path (archy, 2026-08-01 M1
+    /// boundary): a SIWX-style signature over the submission by
+    /// `buyer_npub`, making the RFQ counterparty-signed substrate instead
+    /// of studio self-attestation (ARCHITECTURE.md §1). Recorded, not yet
+    /// verified — like the delivery attestation field (PLAN.md §0).
+    #[serde(default)]
+    #[schemars(length(min = 1))]
+    pub buyer_signature: Option<String>,
 }
 
 /// Token amount in minor units of `mint`.
@@ -65,14 +73,17 @@ pub struct Rfq {
     pub competition: Vec<String>,
     pub budget_ceiling: Option<Amount>,
     pub buyer_npub: String,
+    /// Reserved (see `NewRfq::buyer_signature`); recorded, not verified.
+    pub buyer_signature: Option<String>,
     /// RFC 3339, UTC, server-assigned at capture.
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// One field-level validation failure — serialized into 422 bodies.
+/// `field` is a path (e.g. `milestones[1].amount`), so it is owned.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct FieldError {
-    pub field: &'static str,
+    pub field: String,
     pub message: String,
 }
 
@@ -84,14 +95,14 @@ impl NewRfq {
 
         if self.query.trim().is_empty() {
             errors.push(FieldError {
-                field: "query",
+                field: "query".into(),
                 message: "must be a non-empty string".into(),
             });
         }
 
         if let Err(message) = validate_npub(&self.buyer_npub) {
             errors.push(FieldError {
-                field: "buyer_npub",
+                field: "buyer_npub".into(),
                 message,
             });
         }
@@ -99,14 +110,23 @@ impl NewRfq {
         if let Some(budget) = &self.budget_ceiling {
             if budget.amount == 0 {
                 errors.push(FieldError {
-                    field: "budget_ceiling.amount",
+                    field: "budget_ceiling.amount".into(),
                     message: "must be greater than zero when present".into(),
                 });
             }
             if budget.mint.trim().is_empty() {
                 errors.push(FieldError {
-                    field: "budget_ceiling.mint",
+                    field: "budget_ceiling.mint".into(),
                     message: "must be a non-empty mint address when present".into(),
+                });
+            }
+        }
+
+        if let Some(sig) = &self.buyer_signature {
+            if sig.trim().is_empty() {
+                errors.push(FieldError {
+                    field: "buyer_signature".into(),
+                    message: "must be non-empty when present (omit it instead)".into(),
                 });
             }
         }
@@ -149,6 +169,7 @@ mod tests {
             competition: vec![],
             budget_ceiling: None,
             buyer_npub: GOOD_NPUB.into(),
+            buyer_signature: None,
         }
     }
 
@@ -211,9 +232,10 @@ mod tests {
                 mint: "".into(),
             }),
             buyer_npub: "nope".into(),
+            buyer_signature: None,
         };
         let errors = rfq.validate().unwrap_err();
-        let fields: Vec<_> = errors.iter().map(|e| e.field).collect();
+        let fields: Vec<_> = errors.iter().map(|e| e.field.as_str()).collect();
         assert_eq!(
             fields,
             vec![

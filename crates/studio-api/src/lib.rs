@@ -15,13 +15,41 @@ use axum::{
     Json, Router,
 };
 use sqlx::SqlitePool;
+use studio_types::{Quote, Rfq};
 
 pub mod endpoints;
+
+/// A lifecycle moment worth mirroring to the coordination substrate. The API
+/// emits these post-commit; the daemon's mirror task turns them into Buzz
+/// posts (and, on acceptance, the workroom channel). Best-effort by design in
+/// this slice — the projection row is already durable when a beat is emitted.
+#[derive(Debug, Clone)]
+pub enum LifecycleBeat {
+    DemandCaptured { rfq: Box<Rfq> },
+    QuoteIssued { quote: Box<Quote> },
+    QuoteAccepted { rfq: Box<Rfq>, quote: Box<Quote> },
+}
 
 /// Shared state for all handlers. The pool is the projection store —
 /// rebuildable, never authoritative.
 pub struct AppState {
     pub db: SqlitePool,
+    /// Bearer token for studio-authenticated routes (quote issuance).
+    /// `None` disables those routes — fail-closed, never fail-open.
+    pub studio_token: Option<String>,
+    /// Lifecycle beat sink, consumed by the daemon's Buzz mirror task.
+    /// `None` (tests, ledger-only runs) simply drops the beats.
+    pub lifecycle: Option<tokio::sync::mpsc::UnboundedSender<LifecycleBeat>>,
+}
+
+impl AppState {
+    pub(crate) fn emit(&self, beat: LifecycleBeat) {
+        if let Some(tx) = &self.lifecycle {
+            if tx.send(beat).is_err() {
+                tracing::warn!("lifecycle mirror receiver dropped; beat not mirrored");
+            }
+        }
+    }
 }
 
 pub fn router(state: Arc<AppState>) -> Router {
@@ -39,6 +67,14 @@ pub fn router(state: Arc<AppState>) -> Router {
             post(endpoints::create_rfq::handler).get(endpoints::list_rfqs::handler),
         )
         .route("/api/v1/rfqs/{id}", get(endpoints::get_rfq::handler))
+        .route(
+            "/api/v1/rfqs/{id}/quote",
+            post(endpoints::create_quote::handler).get(endpoints::get_quote::handler),
+        )
+        .route(
+            "/api/v1/rfqs/{id}/quote/accept",
+            post(endpoints::accept_quote::handler),
+        )
         .with_state(state)
 }
 
@@ -75,7 +111,11 @@ mod tests {
     #[tokio::test]
     async fn healthz_returns_200_with_live_store() {
         let db = studio_store::open("sqlite::memory:").await.unwrap();
-        let app = router(Arc::new(AppState { db }));
+        let app = router(Arc::new(AppState {
+            db,
+            studio_token: None,
+            lifecycle: None,
+        }));
 
         let response = app
             .oneshot(
@@ -97,7 +137,11 @@ mod tests {
     async fn healthz_returns_503_when_store_is_gone() {
         let db = studio_store::open("sqlite::memory:").await.unwrap();
         db.close().await;
-        let app = router(Arc::new(AppState { db }));
+        let app = router(Arc::new(AppState {
+            db,
+            studio_token: None,
+            lifecycle: None,
+        }));
 
         let response = app
             .oneshot(

@@ -5,26 +5,71 @@
 use std::sync::Arc;
 
 use anyhow::Context;
+use clap::Parser;
 use studio_api::AppState;
 
 mod config;
+mod mirror;
+
+#[derive(Parser)]
+#[command(version, about = "scarced — the scarce-studio daemon")]
+struct Args {
+    /// YAML config file; SCARCED_* env vars override its keys
+    /// (nested keys join with `__`, e.g. SCARCED_BUZZ__RELAY_URL)
+    #[arg(long, value_name = "PATH")]
+    config: Option<std::path::PathBuf>,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+    studio_buzz::install_crypto_provider();
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .init();
 
-    let config = config::Config::from_env()?;
-    tracing::info!(bind = %config.bind, db = %config.db_url, "scarced starting");
+    let config = config::Config::load(args.config.as_deref())?;
+    tracing::info!(bind = %config.bind, db = %config.db, "scarced starting");
 
-    let db = studio_store::open(&config.db_url)
+    let db = studio_store::open(&config.db)
         .await
-        .with_context(|| format!("opening projection store at {}", config.db_url))?;
+        .with_context(|| format!("opening projection store at {}", config.db))?;
 
-    let app = studio_api::router(Arc::new(AppState { db }));
+    spawn_quote_expiry_sweep(db.clone(), config.sweep_seconds);
+
+    // Lifecycle mirror: config-gated. Fail-closed at startup — a bad key or
+    // channel id refuses to boot rather than silently running ledger-only.
+    let lifecycle = match &config.buzz {
+        Some(buzz) => {
+            let port = studio_buzz::RelayBuzz::new(
+                &buzz.relay_url,
+                &buzz.private_key,
+                buzz.auth_tag.as_deref(),
+            )
+            .context("building buzz relay port")?;
+            let ops_channel = uuid::Uuid::parse_str(&buzz.ops_channel)
+                .context("buzz.ops_channel is not a uuid")?;
+            tracing::info!(relay = %buzz.relay_url, ops_channel = %ops_channel,
+                studio_pubkey = %port.public_key_hex(),
+                "buzz lifecycle mirror enabled");
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+            mirror::spawn(port, ops_channel, db.clone(), rx);
+            Some(tx)
+        }
+        None => {
+            tracing::warn!("no buzz section configured — studio runs ledger-only");
+            None
+        }
+    };
+
+    let app = studio_api::router(Arc::new(AppState {
+        db,
+        studio_token: config.studio_token,
+        lifecycle,
+    }));
     let listener = tokio::net::TcpListener::bind(&config.bind)
         .await
         .with_context(|| format!("binding {}", config.bind))?;
@@ -36,6 +81,24 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("scarced stopped");
     Ok(())
+}
+
+/// QUOTED → LAPSED, on a timer (PLAN.md M2). Reads derive LAPSED past
+/// expiry on their own; the sweep stamps the projection rows so the ledger
+/// itself carries the transition timestamps.
+fn spawn_quote_expiry_sweep(db: sqlx::SqlitePool, interval_seconds: u64) {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(interval_seconds));
+        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            tick.tick().await;
+            match studio_store::quotes::sweep_lapsed(&db, chrono::Utc::now()).await {
+                Ok(0) => {}
+                Ok(lapsed) => tracing::info!(lapsed, "quote expiry sweep"),
+                Err(e) => tracing::error!(error = %e, "quote expiry sweep failed"),
+            }
+        }
+    });
 }
 
 async fn shutdown_signal() {

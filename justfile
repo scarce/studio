@@ -21,8 +21,37 @@ test:
 
 ci: fmt lint test
 
-run:
-    cargo run --bin scarced
+# `just run` or `just run --config scarced.yaml`
+run *args:
+    cargo run --bin scarced -- {{args}}
+
+# Install a target: `just install scarce [cargo install args...]`
+[positional-arguments]
+install *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [ "$#" -eq 0 ]; then
+        echo "Usage: just install scarce [cargo install args...]"
+        exit 1
+    fi
+    target="$1"
+    shift
+
+    case "${target}" in
+        scarce)
+            if [ "$#" -gt 0 ]; then
+                cargo install "$@"
+            else
+                cargo install --path . --locked
+            fi
+            ;;
+        *)
+            echo "Unknown target: ${target}"
+            echo "Usage: just install scarce [cargo install args...]"
+            exit 1
+            ;;
+    esac
 
 # Regenerate schemas/*.json from the studio-types derives. CI fails (drift
 # test) when a type change lands without re-running this.

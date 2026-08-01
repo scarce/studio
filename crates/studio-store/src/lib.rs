@@ -10,7 +10,9 @@ use std::str::FromStr;
 
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 
+pub mod quotes;
 pub mod rfqs;
+pub mod workrooms;
 
 /// Embedded migrations from `<workspace root>/migrations/`.
 pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations");
@@ -26,6 +28,10 @@ pub enum StoreError {
     /// user input.
     #[error("corrupt projection row: {0}")]
     Corrupt(String),
+    /// A uniqueness rule refused the write (e.g. the one-quote-per-RFQ
+    /// singleton) — the caller's 409, not a server fault.
+    #[error("conflict: {0}")]
+    Conflict(String),
 }
 
 pub type Result<T> = std::result::Result<T, StoreError>;

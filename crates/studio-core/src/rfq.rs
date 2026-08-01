@@ -19,6 +19,7 @@ pub fn capture(new: NewRfq, id: String, now: DateTime<Utc>) -> Result<Rfq, Vec<F
         competition: new.competition,
         budget_ceiling: new.budget_ceiling,
         buyer_npub: new.buyer_npub,
+        buyer_signature: new.buyer_signature,
         created_at: now,
     })
 }
@@ -40,6 +41,7 @@ mod tests {
                 competition: vec!["openssl s_client".into()],
                 budget_ceiling: None,
                 buyer_npub: GOOD_NPUB.into(),
+                buyer_signature: None,
             },
             "rfq-1".into(),
             now,
@@ -60,6 +62,7 @@ mod tests {
                 competition: vec![],
                 budget_ceiling: None,
                 buyer_npub: GOOD_NPUB.into(),
+                buyer_signature: None,
             },
             "rfq-1".into(),
             Utc::now(),

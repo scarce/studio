@@ -10,8 +10,9 @@ use crate::Result;
 pub async fn insert(pool: &SqlitePool, rfq: &Rfq) -> Result<()> {
     sqlx::query(
         "INSERT INTO rfqs (id, query, product, monetization, competition,
-                           budget_amount, budget_mint, buyer_npub, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                           budget_amount, budget_mint, buyer_npub,
+                           buyer_signature, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
     )
     .bind(&rfq.id)
     .bind(&rfq.query)
@@ -21,6 +22,7 @@ pub async fn insert(pool: &SqlitePool, rfq: &Rfq) -> Result<()> {
     .bind(rfq.budget_ceiling.as_ref().map(|b| b.amount as i64))
     .bind(rfq.budget_ceiling.as_ref().map(|b| b.mint.clone()))
     .bind(&rfq.buyer_npub)
+    .bind(&rfq.buyer_signature)
     .bind(rfq.created_at.to_rfc3339())
     .execute(pool)
     .await?;
@@ -79,6 +81,7 @@ fn from_row(row: sqlx::sqlite::SqliteRow) -> Result<Rfq> {
             }
         },
         buyer_npub: row.get("buyer_npub"),
+        buyer_signature: row.get("buyer_signature"),
         created_at: DateTime::parse_from_rfc3339(&created_at)
             .map_err(|e| crate::StoreError::Corrupt(format!("rfqs.created_at: {e}")))?
             .with_timezone(&Utc),
@@ -101,6 +104,7 @@ mod tests {
                 mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".into(),
             }),
             buyer_npub: "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0nqr65xpy".into(),
+            buyer_signature: Some("recorded-not-verified".into()),
             created_at: DateTime::parse_from_rfc3339(created_at)
                 .unwrap()
                 .with_timezone(&Utc),
