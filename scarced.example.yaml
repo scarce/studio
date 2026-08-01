@@ -14,5 +14,6 @@ buzz:
   # Studio identity (hex or nsec). Dev only here — use the env var
   # SCARCED_BUZZ__PRIVATE_KEY in anything that is not a laptop.
   private_key: REPLACE_WITH_STUDIO_KEY
-  # Lifecycle mirror target: demand / quote / accepted beats post here.
-  ops_channel: 8f99f8e4-ae12-4397-bc65-7b0f8a69688f
+  # Lifecycle mirror target: demand / quote / accepted beats post here
+  # (private channel — members only).
+  ops_channel: cdc47f86-91d3-4485-945a-75266269918a

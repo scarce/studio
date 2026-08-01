@@ -120,6 +120,12 @@ per-project workroom channel (`proj-<slug>-<shortid>`) where the
 contract-starting post lands. The workroom's channel-create event id is
 stored as the FUNDED → WORKROOM_ACTIVE evidence.
 
+Channels are **private**: workrooms carry commercial terms, so only members
+see them. The mirror adds the RFQ's buyer to the workroom on creation; the
+studio identity is the channel owner. Operator one-offs (flip visibility,
+add a member by npub) live in
+`cargo run -p studio-buzz --example channel_admin`.
+
 The daemon signs as the studio identity (`buzz.private_key`); a managed-agent
 identity also needs the NIP-OA tag (`buzz.auth_tag`, env
 `SCARCED_BUZZ__AUTH_TAG`). Omit the whole `buzz` section for a ledger-only

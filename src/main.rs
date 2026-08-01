@@ -23,6 +23,7 @@ struct Args {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    studio_buzz::install_crypto_provider();
 
     tracing_subscriber::fmt()
         .with_env_filter(

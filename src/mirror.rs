@@ -74,6 +74,19 @@ async fn mirror_one<B: BuzzPort>(
                 },
             )
             .await?;
+            // The workroom is private — the buyer must be a member to see
+            // it. Best-effort with its own loud log: a failed add must not
+            // lose the contract post or the evidence row above.
+            match studio_buzz::pubkey_hex(&rfq.buyer_npub) {
+                Ok(buyer_hex) => {
+                    if let Err(e) = buzz.add_member(created.channel_id, &buyer_hex).await {
+                        tracing::error!(error = %e, rfq_id = %rfq.id,
+                            channel_id = %created.channel_id, "buyer not added to workroom");
+                    }
+                }
+                Err(e) => tracing::error!(error = %e, rfq_id = %rfq.id,
+                    "buyer npub does not decode; not added to workroom"),
+            }
             buzz.post(created.channel_id, &contract_post(&rfq, &quote))
                 .await?;
             buzz.post(
@@ -267,14 +280,20 @@ mod tests {
         .unwrap();
 
         let calls = buzz.calls.lock().unwrap().clone();
-        assert_eq!(calls.len(), 4, "{calls:#?}");
+        assert_eq!(calls.len(), 5, "{calls:#?}");
         assert!(matches!(&calls[0], MockCall::Post { channel_id, .. } if *channel_id == ops));
         assert!(
             matches!(&calls[1], MockCall::CreateChannel { name, .. } if name.starts_with("proj-solana-priority"))
         );
+        // the buyer is added to the (private) workroom before the contract post
+        let expected_buyer = studio_buzz::pubkey_hex(&rfq().buyer_npub).unwrap();
+        assert!(
+            matches!(&calls[2], MockCall::AddMember { channel_id, pubkey_hex }
+            if *channel_id != ops && *pubkey_hex == expected_buyer)
+        );
         // contract post lands in the NEW channel, not ops
-        assert!(matches!(&calls[2], MockCall::Post { channel_id, .. } if *channel_id != ops));
-        assert!(matches!(&calls[3], MockCall::Post { channel_id, .. } if *channel_id == ops));
+        assert!(matches!(&calls[3], MockCall::Post { channel_id, .. } if *channel_id != ops));
+        assert!(matches!(&calls[4], MockCall::Post { channel_id, .. } if *channel_id == ops));
 
         // evidence row: channel-create event id recorded
         let workroom = studio_store::workrooms::get_by_rfq(&db, &rfq().id)
@@ -297,7 +316,7 @@ mod tests {
         .await
         .unwrap();
         let calls = buzz.calls.lock().unwrap();
-        assert_eq!(calls.len(), 5, "only the ops accepted-post repeats");
+        assert_eq!(calls.len(), 6, "only the ops accepted-post repeats");
         assert!(matches!(&calls[4], MockCall::Post { .. }));
     }
 

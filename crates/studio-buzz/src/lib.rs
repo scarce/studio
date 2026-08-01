@@ -39,7 +39,10 @@ pub struct CreatedChannel {
 }
 
 pub trait BuzzPort: Send + Sync + 'static {
-    /// Create an open stream channel; returns ids only after the relay OK.
+    /// Create a **private** stream channel (ludovic, 2026-08-01: workrooms
+    /// carry commercial terms — members only); returns ids only after the
+    /// relay OK. Private means invisible to non-members: every party that
+    /// should see the channel must be added via [`BuzzPort::add_member`].
     fn create_channel(
         &self,
         name: &str,
@@ -52,6 +55,31 @@ pub trait BuzzPort: Send + Sync + 'static {
         channel_id: Uuid,
         content: &str,
     ) -> impl Future<Output = Result<String, BuzzError>> + Send;
+
+    /// Add a member (64-char hex pubkey); returns the relay-accepted event id.
+    fn add_member(
+        &self,
+        channel_id: Uuid,
+        pubkey_hex: &str,
+    ) -> impl Future<Output = Result<String, BuzzError>> + Send;
+}
+
+/// Install ring as the process-level rustls CryptoProvider — required before
+/// the first WSS connection (same pattern and pin as buzz-cli). Call once at
+/// every binary entry point; relying on cargo feature unification to select
+/// a provider silently breaks when the dependency graph shifts. Idempotent:
+/// a second install attempt is a swallowed no-op.
+pub fn install_crypto_provider() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
+/// Decode an npub (or pass through hex) to the 64-char hex pubkey the
+/// membership events carry. Full bech32 decode — a shape-valid but corrupt
+/// npub fails here, not at the relay.
+pub fn pubkey_hex(npub_or_hex: &str) -> Result<String, BuzzError> {
+    nostr::PublicKey::parse(npub_or_hex)
+        .map(|pk| pk.to_hex())
+        .map_err(|e| BuzzError::Key(format!("invalid pubkey `{npub_or_hex}`: {e}")))
 }
 
 /// The real thing: studio key + community relay.
@@ -93,6 +121,19 @@ impl RelayBuzz {
         self.keys.public_key().to_hex()
     }
 
+    /// Admin op, not orchestrator-facing: flip a channel's visibility
+    /// (`"open"` / `"private"`). Kind-9002 metadata edit.
+    pub async fn set_visibility(
+        &self,
+        channel_id: Uuid,
+        visibility: &str,
+    ) -> Result<String, BuzzError> {
+        let builder =
+            buzz_sdk::build_update_channel(channel_id, None, None, Some(visibility), None)
+                .map_err(|e| BuzzError::Build(e.to_string()))?;
+        self.publish(builder).await
+    }
+
     async fn publish(&self, builder: EventBuilder) -> Result<String, BuzzError> {
         let builder = match &self.auth_tag {
             Some(tag) => builder.tags([tag.clone()]),
@@ -129,7 +170,7 @@ impl BuzzPort for RelayBuzz {
         let builder = buzz_sdk::build_create_channel(
             channel_id,
             name,
-            Some(buzz_sdk::Visibility::Open),
+            Some(buzz_sdk::Visibility::Private),
             Some(buzz_sdk::ChannelKind::Stream),
             Some(about),
             None,
@@ -147,6 +188,13 @@ impl BuzzPort for RelayBuzz {
             .map_err(|e| BuzzError::Build(e.to_string()))?;
         self.publish(builder).await
     }
+
+    async fn add_member(&self, channel_id: Uuid, pubkey_hex: &str) -> Result<String, BuzzError> {
+        let builder =
+            buzz_sdk::build_add_member(channel_id, pubkey_hex, Some(buzz_sdk::MemberRole::Member))
+                .map_err(|e| BuzzError::Build(e.to_string()))?;
+        self.publish(builder).await
+    }
 }
 
 /// Recording mock for orchestrator tests: deterministic ids, captured calls.
@@ -157,8 +205,18 @@ pub struct MockBuzz {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MockCall {
-    CreateChannel { name: String, about: String },
-    Post { channel_id: Uuid, content: String },
+    CreateChannel {
+        name: String,
+        about: String,
+    },
+    Post {
+        channel_id: Uuid,
+        content: String,
+    },
+    AddMember {
+        channel_id: Uuid,
+        pubkey_hex: String,
+    },
 }
 
 impl BuzzPort for MockBuzz {
@@ -182,5 +240,14 @@ impl BuzzPort for MockBuzz {
             content: content.to_string(),
         });
         Ok(format!("mock-post-event-{}", calls.len()))
+    }
+
+    async fn add_member(&self, channel_id: Uuid, pubkey_hex: &str) -> Result<String, BuzzError> {
+        let mut calls = self.calls.lock().unwrap();
+        calls.push(MockCall::AddMember {
+            channel_id,
+            pubkey_hex: pubkey_hex.to_string(),
+        });
+        Ok(format!("mock-member-event-{}", calls.len()))
     }
 }
