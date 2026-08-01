@@ -216,7 +216,8 @@ async fn page_and_assets_are_embedded() {
 
     for (uri, content_type, marker) in [
         ("/project/anything", "text/html", "scarce"),
-        ("/assets/style.css", "text/css", "--grad"),
+        // `:root` marks the design-token block without pinning any one palette
+        ("/assets/style.css", "text/css", ":root"),
         // mime db calls it text/ or application/javascript depending on rev
         ("/assets/app.js", "javascript", "STATE_COPY"),
     ] {

@@ -1,16 +1,14 @@
-/* scarce project page — dark stage, bolt gradient (cyan → violet → magenta),
-   system fonts only: the whole app must stay feather-light. */
+/* scarce project page — black, sober, monochrome.
+   System fonts only: the whole app must stay feather-light. */
 
 :root {
-  --bg: #06060a;
-  --panel: #0e0e16;
-  --line: #1e1e2c;
-  --text: #e8e8f2;
-  --muted: #8a8aa0;
-  --cyan: #3ae7ff;
-  --violet: #9c4dff;
-  --magenta: #e44cff;
-  --grad: linear-gradient(135deg, var(--cyan), var(--violet) 55%, var(--magenta));
+  --bg: #000;
+  --panel: #0a0a0a;
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --text: #fff;
+  --muted: #888;
+  --muted-soft: #666;
 }
 
 * { box-sizing: border-box; }
@@ -24,28 +22,35 @@ body {
 }
 
 #app {
-  max-width: 720px;
+  max-width: 640px;
   margin: 0 auto;
-  padding: 40px 20px 48px;
+  padding: 64px 20px 48px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-.masthead { display: flex; align-items: center; gap: 14px; }
-.logo {
-  border-radius: 18px;
-  filter: drop-shadow(0 0 18px rgba(97, 140, 255, 0.35));
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  margin-bottom: 8px;
 }
-.wordmark { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.02em; }
-.wordmark .dot {
-  background: var(--grad);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.logo {
+  border-radius: 14px;
+}
+.wordmark {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
-.stage { flex: 1; padding-top: 40px; }
+.stage { flex: 1; padding-top: 40px; text-align: center; }
 .loading, .error { color: var(--muted); }
 
 .badge {
@@ -56,99 +61,97 @@ body {
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
 }
-.badge.live { color: var(--text); border-color: rgba(58, 231, 255, 0.35); }
+.badge.live { color: var(--text); border-color: var(--line-strong); }
 .pulse {
-  width: 9px; height: 9px; border-radius: 50%;
-  background: var(--grad);
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text);
   animation: pulse 1.8s ease-out infinite;
 }
 @keyframes pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(58, 231, 255, 0.55); }
-  70%  { box-shadow: 0 0 0 12px rgba(58, 231, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(58, 231, 255, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45); }
+  70%  { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
 }
 
 h1.title {
-  margin: 20px 0 8px;
-  font-size: clamp(1.7rem, 5vw, 2.6rem);
-  line-height: 1.15;
-  letter-spacing: -0.015em;
+  margin: 22px 0 8px;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
-.tagline { margin: 0 0 28px; font-size: 1.05rem; color: var(--muted); }
-.tagline strong {
-  background: var(--grad);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
+.tagline { margin: 0 0 28px; font-size: 1.02rem; color: var(--muted); }
+.tagline strong { color: var(--text); font-weight: 600; }
 
-.cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 36px; }
+.cta-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 0 0 44px; }
 .cta {
   display: inline-block;
-  padding: 12px 22px;
-  border-radius: 12px;
-  font-weight: 650;
+  padding: 11px 20px;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
   text-decoration: none;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: opacity 0.12s ease, border-color 0.12s ease;
 }
 .cta.primary {
-  color: #05050a;
-  background: var(--grad);
-  box-shadow: 0 4px 24px rgba(156, 77, 255, 0.35);
+  color: #000;
+  background: var(--text);
 }
-.cta.ghost { color: var(--text); border: 1px solid var(--line); background: var(--panel); }
-.cta:hover { transform: translateY(-1px); box-shadow: 0 6px 30px rgba(156, 77, 255, 0.45); }
-.cta.ghost:hover { box-shadow: 0 4px 18px rgba(30, 30, 44, 0.8); }
+.cta.primary:hover { opacity: 0.85; }
+.cta.ghost { color: var(--text); border: 1px solid var(--line-strong); background: transparent; }
+.cta.ghost:hover { border-color: rgba(255, 255, 255, 0.4); }
 
 .section-label {
   margin: 0 0 12px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--muted-soft);
+  text-align: left;
 }
 
-ol.milestones { list-style: none; margin: 0 0 36px; padding: 0; }
+ol.milestones { list-style: none; margin: 0 0 40px; padding: 0; text-align: left; }
 ol.milestones li {
   position: relative;
   padding: 14px 16px 14px 44px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--panel);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 ol.milestones li::before {
   content: counter(ms);
   counter-increment: ms;
   position: absolute;
-  left: 14px; top: 15px;
+  left: 14px; top: 14px;
   width: 20px; height: 20px;
   border-radius: 50%;
-  background: var(--grad);
-  color: #05050a;
-  font-size: 0.72rem;
-  font-weight: 800;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 ol.milestones { counter-reset: ms; }
-ol.milestones .ms-title { font-weight: 650; }
-ol.milestones .ms-desc { color: var(--muted); font-size: 0.92rem; margin-top: 2px; }
+ol.milestones .ms-title { font-weight: 600; }
+ol.milestones .ms-desc { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
 
 dl.meta {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 6px 18px;
-  margin: 0 0 36px;
-  font-size: 0.92rem;
+  gap: 8px 18px;
+  margin: 0 0 40px;
+  font-size: 0.9rem;
+  text-align: left;
 }
 dl.meta dt { color: var(--muted); }
 dl.meta dd { margin: 0; overflow-wrap: anywhere; }
@@ -164,6 +167,8 @@ dl.meta code {
 .footer {
   border-top: 1px solid var(--line);
   padding-top: 18px;
-  font-size: 0.85rem;
-  color: var(--muted);
+  text-align: center;
+  font-size: 0.84rem;
+  color: var(--muted-soft);
 }
+.footer strong { color: var(--muted); font-weight: 600; }
