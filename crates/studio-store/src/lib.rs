@@ -12,6 +12,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 
 pub mod quotes;
 pub mod rfqs;
+pub mod workrooms;
 
 /// Embedded migrations from `<workspace root>/migrations/`.
 pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations");

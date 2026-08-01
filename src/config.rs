@@ -39,6 +39,16 @@ pub struct Config {
 pub struct BuzzConfig {
     /// Community relay websocket URL, e.g. `wss://scarce.communities.buzz.xyz`.
     pub relay_url: String,
+    /// Studio identity key (hex or nsec) the daemon signs with. Prefer the
+    /// env form (`SCARCED_BUZZ__PRIVATE_KEY`) outside dev.
+    pub private_key: String,
+    /// Ops channel uuid — the lifecycle mirror posts demand/quote/accept
+    /// beats here. Workroom channels are created per accepted engagement.
+    pub ops_channel: String,
+    /// NIP-OA auth tag JSON (`BUZZ_AUTH_TAG` shape). Required when the
+    /// studio key is a managed-agent identity; owner-key runs omit it.
+    #[serde(default)]
+    pub auth_tag: Option<String>,
 }
 
 impl Default for Config {
@@ -61,9 +71,25 @@ impl Config {
             figment = figment.merge(Yaml::file_exact(path));
         }
         let mut config: Config = figment
-            .merge(Env::prefixed("SCARCED_").split("__"))
+            .merge(
+                Env::prefixed("SCARCED_")
+                    .split("__")
+                    // The auth tag value is JSON; figment's lenient env
+                    // parsing would decode it into a sequence and fail the
+                    // string field. It bypasses figment below, read raw.
+                    .ignore(&["buzz.auth_tag", "buzz__auth_tag"]),
+            )
             .extract()
             .map_err(|e| anyhow::anyhow!("invalid config: {e}"))?;
+
+        if let (Some(buzz), Ok(raw)) = (
+            config.buzz.as_mut(),
+            std::env::var("SCARCED_BUZZ__AUTH_TAG"),
+        ) {
+            if !raw.trim().is_empty() {
+                buzz.auth_tag = Some(raw);
+            }
+        }
 
         config.studio_token = config.studio_token.filter(|t| !t.trim().is_empty());
         anyhow::ensure!(
@@ -75,6 +101,15 @@ impl Config {
                 buzz.relay_url.starts_with("wss://") || buzz.relay_url.starts_with("ws://"),
                 "buzz.relay_url must be a ws:// or wss:// URL, got `{}`",
                 buzz.relay_url
+            );
+            anyhow::ensure!(
+                !buzz.private_key.trim().is_empty(),
+                "buzz.private_key (SCARCED_BUZZ__PRIVATE_KEY) must be set when buzz is configured"
+            );
+            anyhow::ensure!(
+                uuid::Uuid::parse_str(&buzz.ops_channel).is_ok(),
+                "buzz.ops_channel must be a channel uuid, got `{}`",
+                buzz.ops_channel
             );
         }
         Ok(config)
@@ -105,14 +140,26 @@ mod tests {
         figment::Jail::expect_with(|jail| {
             jail.create_file(
                 "scarced.yaml",
-                "bind: 0.0.0.0:9999\nstudio_token: from-yaml\nbuzz:\n  relay_url: wss://example.communities.buzz.xyz\n",
+                "bind: 0.0.0.0:9999\nstudio_token: from-yaml\nbuzz:\n  relay_url: wss://example.communities.buzz.xyz\n  private_key: from-yaml-key\n  ops_channel: 8f99f8e4-ae12-4397-bc65-7b0f8a69688f\n",
             )?;
             jail.set_env("SCARCED_STUDIO_TOKEN", "from-env");
             jail.set_env("SCARCED_BUZZ__RELAY_URL", "wss://override.example");
+            // JSON array value: must arrive as the raw string, not a
+            // figment-parsed sequence.
+            jail.set_env(
+                "SCARCED_BUZZ__AUTH_TAG",
+                r#"["auth","aa","{\"cap\":1}","sig"]"#,
+            );
             let config = Config::load(Some(Path::new("scarced.yaml"))).expect("load");
             assert_eq!(config.bind, "0.0.0.0:9999"); // yaml over default
             assert_eq!(config.studio_token.as_deref(), Some("from-env")); // env over yaml
-            assert_eq!(config.buzz.unwrap().relay_url, "wss://override.example");
+            let buzz = config.buzz.unwrap();
+            assert_eq!(buzz.relay_url, "wss://override.example");
+            assert_eq!(buzz.private_key, "from-yaml-key");
+            assert_eq!(
+                buzz.auth_tag.as_deref(),
+                Some(r#"["auth","aa","{\"cap\":1}","sig"]"#)
+            );
             assert_eq!(config.sweep_seconds, 30); // default survives partial yaml
             Ok(())
         });
@@ -154,9 +201,32 @@ mod tests {
     #[test]
     fn non_websocket_relay_url_rejected() {
         figment::Jail::expect_with(|jail| {
-            jail.create_file("scarced.yaml", "buzz:\n  relay_url: https://not-a-relay\n")?;
+            jail.create_file(
+                "scarced.yaml",
+                "buzz:\n  relay_url: https://not-a-relay\n  private_key: k\n  ops_channel: 8f99f8e4-ae12-4397-bc65-7b0f8a69688f\n",
+            )?;
             let err = Config::load(Some(Path::new("scarced.yaml"))).unwrap_err();
             assert!(err.to_string().contains("relay_url"), "{err}");
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn buzz_section_requires_key_and_channel_uuid() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                "scarced.yaml",
+                "buzz:\n  relay_url: wss://r\n  private_key: \" \"\n  ops_channel: 8f99f8e4-ae12-4397-bc65-7b0f8a69688f\n",
+            )?;
+            let err = Config::load(Some(Path::new("scarced.yaml"))).unwrap_err();
+            assert!(err.to_string().contains("private_key"), "{err}");
+
+            jail.create_file(
+                "scarced2.yaml",
+                "buzz:\n  relay_url: wss://r\n  private_key: k\n  ops_channel: not-a-uuid\n",
+            )?;
+            let err = Config::load(Some(Path::new("scarced2.yaml"))).unwrap_err();
+            assert!(err.to_string().contains("ops_channel"), "{err}");
             Ok(())
         });
     }

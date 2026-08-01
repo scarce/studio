@@ -95,13 +95,16 @@ fn default_grace_seconds() -> u64 {
 }
 
 /// Quote lifecycle (PLAN.md §2): issued → QUOTED; expiry sweep or read-side
-/// derivation → LAPSED. Acceptance (FUNDED) belongs to the project, not the
-/// quote.
+/// derivation → LAPSED; buyer acceptance → ACCEPTED (sticky — an accepted
+/// quote never lapses; the engagement it started owns the clock from there).
+/// ACCEPTED stands in for FUNDED while payments are stubbed (PLAN.md §6
+/// override path, ludovic 2026-08-01).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum QuoteStatus {
     Quoted,
     Lapsed,
+    Accepted,
 }
 
 /// An issued quote — what the quote endpoints return.
@@ -124,11 +127,14 @@ pub struct Quote {
     pub created_at: DateTime<Utc>,
     /// Set by the expiry sweep; `expires_at` when derived at read time.
     pub lapsed_at: Option<DateTime<Utc>>,
+    /// Buyer acceptance instant. Set exactly once; never on a lapsed quote.
+    pub accepted_at: Option<DateTime<Utc>>,
 }
 
 impl Quote {
     /// The status as of `now`, fail-closed against sweep lag: a quote past
     /// `expires_at` reads LAPSED even if the sweep has not stamped it yet.
+    /// ACCEPTED is sticky — acceptance beat expiry, so expiry is moot.
     pub fn at(mut self, now: DateTime<Utc>) -> Quote {
         if self.status == QuoteStatus::Quoted && now >= self.expires_at {
             self.status = QuoteStatus::Lapsed;
@@ -488,6 +494,7 @@ mod tests {
             status: QuoteStatus::Quoted,
             created_at: ts("2026-08-01T00:00:00Z"),
             lapsed_at: None,
+            accepted_at: None,
         };
 
         let live = q.clone().at(ts("2026-08-01T23:59:59Z"));

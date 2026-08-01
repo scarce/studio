@@ -101,6 +101,30 @@ commitment. The buyer read is free: `GET /api/v1/rfqs/$RFQ_ID/quote` — status
 is computed fail-closed against `expires_at`, so a lapsed quote reads
 `LAPSED` even before the sweep stamps it.
 
+Accept the quote (buyer, free, once — a second POST is `409`, and a lapsed
+quote refuses):
+
+```bash
+curl -s -X POST localhost:7380/api/v1/rfqs/$RFQ_ID/quote/accept | jq .status
+```
+
+Acceptance stands in for funding while payments are stubbed (PLAN.md §6
+override path): the contract starts.
+
+## Watch it in Buzz
+
+With the `buzz` config section present (see `scarced.example.yaml`), every
+lifecycle beat is mirrored to the community relay: demand captured, quote
+issued, and quote accepted post to the ops channel, and acceptance creates a
+per-project workroom channel (`proj-<slug>-<shortid>`) where the
+contract-starting post lands. The workroom's channel-create event id is
+stored as the FUNDED → WORKROOM_ACTIVE evidence.
+
+The daemon signs as the studio identity (`buzz.private_key`); a managed-agent
+identity also needs the NIP-OA tag (`buzz.auth_tag`, env
+`SCARCED_BUZZ__AUTH_TAG`). Omit the whole `buzz` section for a ledger-only
+run.
+
 ## Develop
 
 ```bash

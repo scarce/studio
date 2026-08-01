@@ -23,6 +23,7 @@ pub async fn handler() -> impl IntoResponse {
                 { "method": "GET",  "path": "/api/v1/rfqs/{id}",      "description": "fetch one captured RFQ" },
                 { "method": "POST", "path": "/api/v1/rfqs/{id}/quote", "description": "issue the quote for an RFQ (studio bearer token; schema: quote)" },
                 { "method": "GET",  "path": "/api/v1/rfqs/{id}/quote", "description": "fetch the quote for an RFQ (status fail-closed against expiry)" },
+                { "method": "POST", "path": "/api/v1/rfqs/{id}/quote/accept", "description": "accept a live quote (buyer, free; once) — starts the contract" },
             ],
             "schemas": schemas,
             "errors": "validation failures return 422 with { errors: [{ field, message }] }",

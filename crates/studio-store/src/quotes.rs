@@ -14,8 +14,9 @@ pub async fn insert(pool: &SqlitePool, quote: &Quote) -> Result<()> {
         "INSERT INTO quotes (rfq_id, id, price_amount, price_mint, milestones,
                              timeline, payout_destination, grace_seconds,
                              idle_timeout_seconds, gate_policy, policy_hash,
-                             expires_at, status, created_at, lapsed_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                             expires_at, status, created_at, lapsed_at,
+                             accepted_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
     )
     .bind(&quote.rfq_id)
     .bind(&quote.id)
@@ -32,6 +33,7 @@ pub async fn insert(pool: &SqlitePool, quote: &Quote) -> Result<()> {
     .bind(status_str(quote.status))
     .bind(quote.created_at.to_rfc3339())
     .bind(quote.lapsed_at.map(|t| t.to_rfc3339()))
+    .bind(quote.accepted_at.map(|t| t.to_rfc3339()))
     .execute(pool)
     .await;
 
@@ -68,10 +70,29 @@ pub async fn sweep_lapsed(pool: &SqlitePool, now: DateTime<Utc>) -> Result<u64> 
     Ok(result.rows_affected())
 }
 
+/// Stamp ACCEPTED, atomically guarded: only a live QUOTED row can accept.
+/// Returns the number of rows updated — 0 means the quote was already
+/// accepted, already lapsed, or past expiry (the caller re-derives which for
+/// its error message); the guard makes double-accept a lost race, not a
+/// second acceptance.
+pub async fn mark_accepted(pool: &SqlitePool, rfq_id: &str, now: DateTime<Utc>) -> Result<u64> {
+    let now = now.to_rfc3339();
+    let result = sqlx::query(
+        "UPDATE quotes SET status = 'ACCEPTED', accepted_at = ?1
+         WHERE rfq_id = ?2 AND status = 'QUOTED' AND expires_at > ?1",
+    )
+    .bind(&now)
+    .bind(rfq_id)
+    .execute(pool)
+    .await?;
+    Ok(result.rows_affected())
+}
+
 fn status_str(status: QuoteStatus) -> &'static str {
     match status {
         QuoteStatus::Quoted => "QUOTED",
         QuoteStatus::Lapsed => "LAPSED",
+        QuoteStatus::Accepted => "ACCEPTED",
     }
 }
 
@@ -92,6 +113,7 @@ fn ts(what: &'static str, raw: String) -> Result<DateTime<Utc>> {
 fn from_row(row: sqlx::sqlite::SqliteRow) -> Result<Quote> {
     let status: String = row.get("status");
     let lapsed_at: Option<String> = row.get("lapsed_at");
+    let accepted_at: Option<String> = row.get("accepted_at");
     Ok(Quote {
         id: row.get("id"),
         rfq_id: row.get("rfq_id"),
@@ -112,10 +134,12 @@ fn from_row(row: sqlx::sqlite::SqliteRow) -> Result<Quote> {
         status: match status.as_str() {
             "QUOTED" => QuoteStatus::Quoted,
             "LAPSED" => QuoteStatus::Lapsed,
+            "ACCEPTED" => QuoteStatus::Accepted,
             other => return Err(corrupt("status", format!("unknown status `{other}`"))),
         },
         created_at: ts("created_at", row.get("created_at"))?,
         lapsed_at: lapsed_at.map(|raw| ts("lapsed_at", raw)).transpose()?,
+        accepted_at: accepted_at.map(|raw| ts("accepted_at", raw)).transpose()?,
     })
 }
 
@@ -191,6 +215,7 @@ mod tests {
             status: QuoteStatus::Quoted,
             created_at: ts("2026-08-01T15:00:00Z"),
             lapsed_at: None,
+            accepted_at: None,
         }
     }
 
@@ -262,5 +287,40 @@ mod tests {
         );
         let unchanged = get_by_rfq(&pool, "rfq-1").await.unwrap().unwrap();
         assert_eq!(unchanged.lapsed_at, Some(now));
+    }
+
+    #[tokio::test]
+    async fn accept_stamps_once_and_only_live_quoted_rows() {
+        let pool = seeded_pool().await;
+        insert(&pool, &sample("q-1", "rfq-1", "2026-08-08T15:00:00Z"))
+            .await
+            .unwrap();
+        insert(&pool, &sample("q-2", "rfq-2", "2026-08-02T00:00:00Z"))
+            .await
+            .unwrap();
+
+        let now = ts("2026-08-01T16:00:00Z");
+        assert_eq!(mark_accepted(&pool, "rfq-1", now).await.unwrap(), 1);
+        let accepted = get_by_rfq(&pool, "rfq-1").await.unwrap().unwrap();
+        assert_eq!(accepted.status, QuoteStatus::Accepted);
+        assert_eq!(accepted.accepted_at, Some(now));
+
+        // double-accept loses the guard
+        assert_eq!(mark_accepted(&pool, "rfq-1", now).await.unwrap(), 0);
+
+        // past expiry: no acceptance, even before the sweep stamps LAPSED
+        let late = ts("2026-08-02T00:00:30Z");
+        assert_eq!(mark_accepted(&pool, "rfq-2", late).await.unwrap(), 0);
+
+        // the sweep never touches an accepted row
+        assert_eq!(
+            sweep_lapsed(&pool, ts("2026-09-01T00:00:00Z"))
+                .await
+                .unwrap(),
+            1
+        );
+        let still = get_by_rfq(&pool, "rfq-1").await.unwrap().unwrap();
+        assert_eq!(still.status, QuoteStatus::Accepted);
+        assert_eq!(still.lapsed_at, None);
     }
 }

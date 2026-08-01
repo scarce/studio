@@ -18,6 +18,7 @@ async fn app_with_token(token: Option<&str>) -> axum::Router {
     router(Arc::new(AppState {
         db,
         studio_token: token.map(String::from),
+        lifecycle: None,
     }))
 }
 
@@ -257,4 +258,119 @@ async fn missing_quote_is_404_and_reads_stay_free() {
     )
     .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn accept_flow_once_free_and_conflict_after() {
+    let app = app_with_token(Some(TOKEN)).await;
+    let rfq_id = capture_rfq(&app).await;
+    let (status, _) = send(
+        &app,
+        "POST",
+        &format!("/api/v1/rfqs/{rfq_id}/quote"),
+        Some(TOKEN),
+        Some(quote_body(FAR_FUTURE)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+
+    // buyer accepts — free, no bearer
+    let accept_uri = format!("/api/v1/rfqs/{rfq_id}/quote/accept");
+    let (status, accepted) = send(&app, "POST", &accept_uri, None, None).await;
+    assert_eq!(status, StatusCode::OK, "{accepted}");
+    assert_eq!(accepted["status"], "ACCEPTED");
+    assert!(accepted["accepted_at"].is_string());
+
+    // second accept conflicts, with the reason named
+    let (status, body) = send(&app, "POST", &accept_uri, None, None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert!(
+        body["error"].as_str().unwrap().contains("already accepted"),
+        "{body}"
+    );
+
+    // the read reflects acceptance and never lapses it
+    let (status, read) = send(
+        &app,
+        "GET",
+        &format!("/api/v1/rfqs/{rfq_id}/quote"),
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(read["status"], "ACCEPTED");
+}
+
+#[tokio::test]
+async fn accepting_a_missing_or_lapsed_quote_refuses() {
+    let app = app_with_token(Some(TOKEN)).await;
+    let rfq_id = capture_rfq(&app).await;
+
+    // no quote yet
+    let accept_uri = format!("/api/v1/rfqs/{rfq_id}/quote/accept");
+    let (status, _) = send(&app, "POST", &accept_uri, None, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    // issue a quote that expires almost immediately, then let it pass
+    let expires = (chrono::Utc::now() + chrono::Duration::milliseconds(50)).to_rfc3339();
+    let (status, _) = send(
+        &app,
+        "POST",
+        &format!("/api/v1/rfqs/{rfq_id}/quote"),
+        Some(TOKEN),
+        Some(quote_body(&expires)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    tokio::time::sleep(std::time::Duration::from_millis(80)).await;
+
+    let (status, body) = send(&app, "POST", &accept_uri, None, None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert!(body["error"].as_str().unwrap().contains("lapsed"), "{body}");
+}
+
+#[tokio::test]
+async fn lifecycle_beats_are_emitted_in_order() {
+    let db = studio_store::open("sqlite::memory:").await.unwrap();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    let app = router(Arc::new(AppState {
+        db,
+        studio_token: Some(TOKEN.into()),
+        lifecycle: Some(tx),
+    }));
+
+    let rfq_id = capture_rfq(&app).await;
+    send(
+        &app,
+        "POST",
+        &format!("/api/v1/rfqs/{rfq_id}/quote"),
+        Some(TOKEN),
+        Some(quote_body(FAR_FUTURE)),
+    )
+    .await;
+    send(
+        &app,
+        "POST",
+        &format!("/api/v1/rfqs/{rfq_id}/quote/accept"),
+        None,
+        None,
+    )
+    .await;
+
+    use studio_api::LifecycleBeat;
+    assert!(matches!(
+        rx.try_recv().unwrap(),
+        LifecycleBeat::DemandCaptured { rfq } if rfq.id == rfq_id
+    ));
+    assert!(matches!(
+        rx.try_recv().unwrap(),
+        LifecycleBeat::QuoteIssued { quote } if quote.rfq_id == rfq_id
+    ));
+    assert!(matches!(
+        rx.try_recv().unwrap(),
+        LifecycleBeat::QuoteAccepted { rfq, quote }
+            if rfq.id == rfq_id && quote.accepted_at.is_some()
+    ));
+    assert!(rx.try_recv().is_err(), "no extra beats");
 }

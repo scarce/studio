@@ -11,7 +11,9 @@ path = "src/main.rs"
 
 [dependencies]
 studio-api = { path = "crates/studio-api" }
+studio-buzz = { path = "crates/studio-buzz" }
 studio-store = { path = "crates/studio-store" }
+studio-types = { path = "crates/studio-types" }
 
 anyhow = { workspace = true }
 axum = { workspace = true }
@@ -23,6 +25,7 @@ sqlx = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 figment = { workspace = true, features = ["test"] }
@@ -67,6 +70,13 @@ uuid = { version = "1", features = ["v4"] }
 # Configuration — defaults ← YAML ← SCARCED_* env (ludovic, 2026-08-01)
 clap = { version = "4", features = ["derive"] }
 figment = { version = "0.10", features = ["yaml", "env"] }
+
+# Buzz coordination substrate — crates consumed directly from the buzz repo
+# (ludovic, 2026-08-01). Pinned by rev: the repo is a workspace, not a
+# registry; bump deliberately, in lockstep with the relay we run against.
+buzz-sdk = { git = "https://github.com/block/buzz", rev = "22be8bb35177e27efc2dca2534df9a8dd871eae0" }
+buzz-ws-client = { git = "https://github.com/block/buzz", rev = "22be8bb35177e27efc2dca2534df9a8dd871eae0" }
+nostr = "0.44"
 
 # Errors + observability
 anyhow = "1"

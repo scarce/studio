@@ -7,6 +7,12 @@ db: sqlite://scarced.db
 studio_token: dev-token
 sweep_seconds: 30
 
-# Buzz community the studio operates in (consumed by the M3 orchestrator).
+# Buzz community the studio operates in. All three keys are required when
+# the section is present; omit the whole section for a ledger-only run.
 buzz:
   relay_url: wss://scarce.communities.buzz.xyz
+  # Studio identity (hex or nsec). Dev only here — use the env var
+  # SCARCED_BUZZ__PRIVATE_KEY in anything that is not a laptop.
+  private_key: REPLACE_WITH_STUDIO_KEY
+  # Lifecycle mirror target: demand / quote / accepted beats post here.
+  ops_channel: 8f99f8e4-ae12-4397-bc65-7b0f8a69688f

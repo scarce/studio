@@ -9,6 +9,7 @@ use clap::Parser;
 use studio_api::AppState;
 
 mod config;
+mod mirror;
 
 #[derive(Parser)]
 #[command(version, about = "scarced — the scarce-studio daemon")]
@@ -31,12 +32,6 @@ async fn main() -> anyhow::Result<()> {
 
     let config = config::Config::load(args.config.as_deref())?;
     tracing::info!(bind = %config.bind, db = %config.db, "scarced starting");
-    match &config.buzz {
-        Some(buzz) => {
-            tracing::info!(relay = %buzz.relay_url, "buzz relay configured (orchestrator consumes it in M3)")
-        }
-        None => tracing::warn!("no buzz relay configured — studio runs ledger-only"),
-    }
 
     let db = studio_store::open(&config.db)
         .await
@@ -44,9 +39,35 @@ async fn main() -> anyhow::Result<()> {
 
     spawn_quote_expiry_sweep(db.clone(), config.sweep_seconds);
 
+    // Lifecycle mirror: config-gated. Fail-closed at startup — a bad key or
+    // channel id refuses to boot rather than silently running ledger-only.
+    let lifecycle = match &config.buzz {
+        Some(buzz) => {
+            let port = studio_buzz::RelayBuzz::new(
+                &buzz.relay_url,
+                &buzz.private_key,
+                buzz.auth_tag.as_deref(),
+            )
+            .context("building buzz relay port")?;
+            let ops_channel = uuid::Uuid::parse_str(&buzz.ops_channel)
+                .context("buzz.ops_channel is not a uuid")?;
+            tracing::info!(relay = %buzz.relay_url, ops_channel = %ops_channel,
+                studio_pubkey = %port.public_key_hex(),
+                "buzz lifecycle mirror enabled");
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+            mirror::spawn(port, ops_channel, db.clone(), rx);
+            Some(tx)
+        }
+        None => {
+            tracing::warn!("no buzz section configured — studio runs ledger-only");
+            None
+        }
+    };
+
     let app = studio_api::router(Arc::new(AppState {
         db,
         studio_token: config.studio_token,
+        lifecycle,
     }));
     let listener = tokio::net::TcpListener::bind(&config.bind)
         .await

@@ -1,6 +1,7 @@
 //! One module per endpoint (SF API conventions). `/healthz` lives in the
 //! crate root.
 
+pub mod accept_quote;
 pub mod api_index;
 pub mod create_quote;
 pub mod create_rfq;

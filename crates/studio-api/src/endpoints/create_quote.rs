@@ -93,6 +93,9 @@ pub async fn handler(
                 quote_id = %quote.id, rfq_id = %quote.rfq_id,
                 policy_hash = %quote.policy_hash, "quote issued"
             );
+            state.emit(crate::LifecycleBeat::QuoteIssued {
+                quote: Box::new(quote.clone()),
+            });
             (StatusCode::CREATED, Json(serde_json::json!(quote)))
         }
         Err(StoreError::Conflict(message)) => (

@@ -33,7 +33,27 @@ pub fn issue(
         status: QuoteStatus::Quoted,
         created_at: now,
         lapsed_at: None,
+        accepted_at: None,
     })
+}
+
+/// Why an acceptance was refused. Fail-closed like the gate engine: anything
+/// that is not a live QUOTED quote refuses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AcceptError {
+    AlreadyAccepted,
+    Lapsed,
+}
+
+/// Decide acceptance for `quote` as of `now` — pure; the store's atomic
+/// UPDATE guard enforces the same rule against races. ACCEPTED stands in for
+/// FUNDED while payments are stubbed (PLAN.md §6 override path).
+pub fn accept(quote: &Quote, now: DateTime<Utc>) -> Result<DateTime<Utc>, AcceptError> {
+    match quote.clone().at(now).status {
+        QuoteStatus::Accepted => Err(AcceptError::AlreadyAccepted),
+        QuoteStatus::Lapsed => Err(AcceptError::Lapsed),
+        QuoteStatus::Quoted => Ok(now),
+    }
 }
 
 #[cfg(test)]
@@ -103,5 +123,26 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(errors[0].field, "expires_at");
+    }
+
+    #[test]
+    fn accept_only_live_quoted_and_fail_closed_on_expiry() {
+        let issued_at = ts("2026-08-01T15:00:00Z");
+        let quote = issue(valid(), "rfq-1".into(), "q-1".into(), issued_at).unwrap();
+
+        // live: accepts at `now`
+        let now = ts("2026-08-02T00:00:00Z");
+        assert_eq!(accept(&quote, now), Ok(now));
+
+        // past expiry: refused even though the row still says QUOTED —
+        // same fail-closed derivation as reads
+        let late = ts("2026-09-01T00:00:00Z");
+        assert_eq!(accept(&quote, late), Err(AcceptError::Lapsed));
+
+        // already accepted: sticky, refused forever after
+        let mut accepted = quote.clone();
+        accepted.status = QuoteStatus::Accepted;
+        accepted.accepted_at = Some(now);
+        assert_eq!(accept(&accepted, late), Err(AcceptError::AlreadyAccepted));
     }
 }

@@ -15,6 +15,7 @@ async fn app() -> axum::Router {
     router(Arc::new(AppState {
         db,
         studio_token: None,
+        lifecycle: None,
     }))
 }
 
