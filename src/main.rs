@@ -71,6 +71,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Lifecycle mirror: config-gated. Fail-closed at startup — a bad key or
     // channel id refuses to boot rather than silently running ledger-only.
+    let invite_url: std::sync::Arc<std::sync::RwLock<Option<String>>> = Default::default();
     let lifecycle = match &config.buzz {
         Some(buzz) => {
             let port = studio_buzz::RelayBuzz::new(
@@ -84,6 +85,15 @@ async fn main() -> anyhow::Result<()> {
             tracing::info!(relay = %buzz.relay_url, ops_channel = %ops_channel,
                 studio_pubkey = %port.public_key_hex(),
                 "buzz lifecycle mirror enabled");
+            spawn_invite_refresh(
+                studio_buzz::RelayBuzz::new(
+                    &buzz.relay_url,
+                    &buzz.private_key,
+                    buzz.auth_tag.as_deref(),
+                )
+                .context("building buzz relay port")?,
+                invite_url.clone(),
+            );
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
             mirror::spawn(port, ops_channel, db.clone(), public_url.clone(), rx);
             Some(tx)
@@ -100,6 +110,7 @@ async fn main() -> anyhow::Result<()> {
         lifecycle,
         public_url,
         community_web_url,
+        invite_url,
     }));
     let listener = tokio::net::TcpListener::bind(&config.bind)
         .await
@@ -112,6 +123,39 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("scarced stopped");
     Ok(())
+}
+
+/// Keep a live community invite minted for the project page (the relay's
+/// `/invite/<code>` landing is the onboarding flow). Invites expire — mint
+/// with the 72 h default and re-mint daily; on failure (typically 403: the
+/// studio key is not a community owner/admin) the page simply runs without
+/// an invite CTA, and the log says why. Fail-open by design: onboarding is
+/// optional, the ledger is not.
+fn spawn_invite_refresh(
+    buzz: studio_buzz::RelayBuzz,
+    slot: std::sync::Arc<std::sync::RwLock<Option<String>>>,
+) {
+    use studio_buzz::BuzzPort;
+    const TTL_SECS: u64 = 72 * 60 * 60;
+    const REFRESH_OK: std::time::Duration = std::time::Duration::from_secs(24 * 60 * 60);
+    const RETRY_ERR: std::time::Duration = std::time::Duration::from_secs(60 * 60);
+    tokio::spawn(async move {
+        loop {
+            let wait = match buzz.mint_invite(TTL_SECS, None).await {
+                Ok(invite) => {
+                    tracing::info!(url = %invite.url, "community invite minted for the project page");
+                    *slot.write().expect("invite slot poisoned") = Some(invite.url);
+                    REFRESH_OK
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e,
+                        "invite mint failed — project page runs without an invite CTA");
+                    RETRY_ERR
+                }
+            };
+            tokio::time::sleep(wait).await;
+        }
+    });
 }
 
 /// QUOTED → LAPSED, on a timer (PLAN.md M2). Reads derive LAPSED past

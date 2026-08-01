@@ -143,8 +143,9 @@ mod tests {
 
     fn links() -> ProjectLinks {
         ProjectLinks {
+            invite: Some("https://scarce.communities.buzz.xyz/invite/v2.test".into()),
             community_web: Some("https://scarce.communities.buzz.xyz".into()),
-            buzz_desktop: "https://buzz.xyz".into(),
+            buzz_desktop: "https://github.com/block/buzz/releases".into(),
         }
     }
 

@@ -14,12 +14,16 @@ const TOKEN: &str = "test-studio-token";
 
 async fn app() -> (axum::Router, sqlx::SqlitePool) {
     let db = studio_store::open("sqlite::memory:").await.unwrap();
+    let invite_url = std::sync::Arc::new(std::sync::RwLock::new(Some(
+        "https://scarce.communities.buzz.xyz/invite/v2.test".to_string(),
+    )));
     let app = router(Arc::new(AppState {
         db: db.clone(),
         studio_token: Some(TOKEN.into()),
         lifecycle: None,
         public_url: "https://scarce.sh".into(),
         community_web_url: Some("https://scarce.communities.buzz.xyz".into()),
+        invite_url,
     }));
     (app, db)
 }
@@ -131,6 +135,11 @@ async fn project_view_walks_the_state_ladder_and_leaks_no_money() {
     assert_eq!(
         project["links"]["community_web"],
         "https://scarce.communities.buzz.xyz"
+    );
+    // The invite CTA links the relay's own onboarding landing page.
+    assert_eq!(
+        project["links"]["invite"],
+        "https://scarce.communities.buzz.xyz/invite/v2.test"
     );
 
     // Accepted, workroom not yet provisioned (the mirror is async).

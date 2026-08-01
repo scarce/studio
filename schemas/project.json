@@ -13,6 +13,13 @@
             "string",
             "null"
           ]
+        },
+        "invite": {
+          "description": "Community invite landing page (`https://<host>/invite/<code>`) — the\nrelay's own onboarding flow (desktop deep link, download, in-browser\nclaim). Present when the studio key can mint invites.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [

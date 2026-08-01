@@ -62,6 +62,10 @@ pub struct ProjectWorkroom {
 /// Onboarding links the page renders as calls to action.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ProjectLinks {
+    /// Community invite landing page (`https://<host>/invite/<code>`) — the
+    /// relay's own onboarding flow (desktop deep link, download, in-browser
+    /// claim). Present when the studio key can mint invites.
+    pub invite: Option<String>,
     /// Web entry to the studio's Buzz community, when one is configured.
     pub community_web: Option<String>,
     /// Buzz Desktop download.

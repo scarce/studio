@@ -48,6 +48,7 @@ pub async fn handler(
     };
 
     let links = ProjectLinks {
+        invite: state.invite_url.read().ok().and_then(|url| url.clone()),
         community_web: state.community_web_url.clone(),
         buzz_desktop: crate::BUZZ_DESKTOP_URL.to_string(),
     };

@@ -63,18 +63,27 @@
     }
     stage.appendChild(tagline);
 
-    // Calls to action — join the community where the work happens.
+    // Calls to action — join the community where the work happens. An
+    // invite link is the relay's own onboarding flow (desktop deep link,
+    // download, in-browser claim) and beats a bare community link.
     var ctas = el("div", "cta-row");
-    if (project.links && project.links.community_web) {
+    var links = project.links || {};
+    if (links.invite) {
+      var invite = el("a", "cta primary", "Join the build on Buzz");
+      invite.href = links.invite;
+      invite.target = "_blank";
+      invite.rel = "noopener";
+      ctas.appendChild(invite);
+    } else if (links.community_web) {
       var join = el("a", "cta primary", "Watch it live on Buzz");
-      join.href = project.links.community_web;
+      join.href = links.community_web;
       join.target = "_blank";
       join.rel = "noopener";
       ctas.appendChild(join);
     }
-    if (project.links && project.links.buzz_desktop) {
+    if (links.buzz_desktop) {
       var desktop = el("a", "cta ghost", "Get Buzz Desktop");
-      desktop.href = project.links.buzz_desktop;
+      desktop.href = links.buzz_desktop;
       desktop.target = "_blank";
       desktop.rel = "noopener";
       ctas.appendChild(desktop);

@@ -89,6 +89,9 @@ toml = "1"
 include_dir = "0.7"
 mime_guess = { version = "2.0", default-features = false, features = ["rev-mappings"] }
 nostr = "0.44"
+# Invite minting is HTTP (NIP-98 signed POST /api/invites) — pins match buzz.
+reqwest = { version = "0.13", features = ["json", "rustls"], default-features = false }
+base64 = "0.22"
 # WSS needs a process-level rustls CryptoProvider; every binary entry point
 # installs ring explicitly (same pin/reason as buzz-cli) — relying on feature
 # unification to pick one silently breaks when the dep graph shifts.

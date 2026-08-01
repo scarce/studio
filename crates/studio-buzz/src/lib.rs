@@ -16,6 +16,10 @@ use std::future::Future;
 use nostr::{EventBuilder, Keys, Tag};
 use uuid::Uuid;
 
+pub mod invite;
+
+pub use invite::MintedInvite;
+
 #[derive(Debug, thiserror::Error)]
 pub enum BuzzError {
     #[error("invalid studio key: {0}")]
@@ -28,6 +32,8 @@ pub enum BuzzError {
     Transport(#[from] buzz_ws_client::WsClientError),
     #[error("relay rejected event {event_id}: {message}")]
     Rejected { event_id: String, message: String },
+    #[error("relay http api: {0}")]
+    Api(String),
 }
 
 /// A channel the port created, with the relay-accepted create event id —
@@ -62,6 +68,15 @@ pub trait BuzzPort: Send + Sync + 'static {
         channel_id: Uuid,
         pubkey_hex: &str,
     ) -> impl Future<Output = Result<String, BuzzError>> + Send;
+
+    /// Mint a community invite (`POST /api/invites`, NIP-98). Requires the
+    /// studio key to hold owner/admin in the community; callers treat a
+    /// failure as "no invite available", never as fatal.
+    fn mint_invite(
+        &self,
+        ttl_secs: u64,
+        max_uses: Option<i32>,
+    ) -> impl Future<Output = Result<MintedInvite, BuzzError>> + Send;
 }
 
 /// Install ring as the process-level rustls CryptoProvider — required before
@@ -195,6 +210,21 @@ impl BuzzPort for RelayBuzz {
                 .map_err(|e| BuzzError::Build(e.to_string()))?;
         self.publish(builder).await
     }
+
+    async fn mint_invite(
+        &self,
+        ttl_secs: u64,
+        max_uses: Option<i32>,
+    ) -> Result<MintedInvite, BuzzError> {
+        invite::mint(
+            &self.relay_url,
+            &self.keys,
+            self.auth_tag.as_ref(),
+            ttl_secs,
+            max_uses,
+        )
+        .await
+    }
 }
 
 /// Recording mock for orchestrator tests: deterministic ids, captured calls.
@@ -216,6 +246,10 @@ pub enum MockCall {
     AddMember {
         channel_id: Uuid,
         pubkey_hex: String,
+    },
+    MintInvite {
+        ttl_secs: u64,
+        max_uses: Option<i32>,
     },
 }
 
@@ -249,5 +283,19 @@ impl BuzzPort for MockBuzz {
             pubkey_hex: pubkey_hex.to_string(),
         });
         Ok(format!("mock-member-event-{}", calls.len()))
+    }
+
+    async fn mint_invite(
+        &self,
+        ttl_secs: u64,
+        max_uses: Option<i32>,
+    ) -> Result<MintedInvite, BuzzError> {
+        let mut calls = self.calls.lock().unwrap();
+        calls.push(MockCall::MintInvite { ttl_secs, max_uses });
+        let n = calls.len();
+        Ok(MintedInvite {
+            url: format!("https://mock.relay/invite/v2.mock-{n}"),
+            code: format!("v2.mock-{n}"),
+        })
     }
 }

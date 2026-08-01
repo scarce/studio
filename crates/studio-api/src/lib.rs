@@ -20,9 +20,9 @@ use studio_types::{Quote, Rfq};
 pub mod endpoints;
 pub mod web;
 
-/// Buzz Desktop download link the project page offers. One place to change
-/// when the canonical URL moves.
-pub const BUZZ_DESKTOP_URL: &str = "https://buzz.xyz";
+/// Buzz Desktop download link the project page offers — the canonical
+/// releases page (the same fallback the relay's own invite landing uses).
+pub const BUZZ_DESKTOP_URL: &str = "https://github.com/block/buzz/releases";
 
 /// A lifecycle moment worth mirroring to the coordination substrate. The API
 /// emits these post-commit; the daemon's mirror task turns them into Buzz
@@ -51,6 +51,10 @@ pub struct AppState {
     /// Web entry to the studio's Buzz community, offered on the project
     /// page. `None` (ledger-only runs) renders the page without a join link.
     pub community_web_url: Option<String>,
+    /// Latest minted community invite URL, refreshed by the daemon's invite
+    /// task (invites expire; the page always links the current one). `None`
+    /// when the studio key cannot mint or the run is ledger-only.
+    pub invite_url: std::sync::Arc<std::sync::RwLock<Option<String>>>,
 }
 
 impl AppState {
@@ -136,6 +140,7 @@ mod tests {
             lifecycle: None,
             public_url: "http://127.0.0.1:7380".into(),
             community_web_url: None,
+            invite_url: Default::default(),
         }));
 
         let response = app
@@ -164,6 +169,7 @@ mod tests {
             lifecycle: None,
             public_url: "http://127.0.0.1:7380".into(),
             community_web_url: None,
+            invite_url: Default::default(),
         }));
 
         let response = app
