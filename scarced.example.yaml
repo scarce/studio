@@ -1,0 +1,12 @@
+# scarced config — `scarced --config scarced.yaml`. Every key can be
+# overridden by a SCARCED_* env var (nested keys join with `__`:
+# SCARCED_BUZZ__RELAY_URL). Dev values only; real secrets come from env.
+
+bind: 127.0.0.1:7380
+db: sqlite://scarced.db
+studio_token: dev-token
+sweep_seconds: 30
+
+# Buzz community the studio operates in (consumed by the M3 orchestrator).
+buzz:
+  relay_url: wss://scarce.communities.buzz.xyz

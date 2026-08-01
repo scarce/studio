@@ -16,10 +16,16 @@ studio-store = { path = "crates/studio-store" }
 anyhow = { workspace = true }
 axum = { workspace = true }
 chrono = { workspace = true }
+clap = { workspace = true }
+figment = { workspace = true }
+serde = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+figment = { workspace = true, features = ["test"] }
 
 [workspace]
 members = [
@@ -57,6 +63,10 @@ bech32 = "0.11"
 chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
+
+# Configuration — defaults ← YAML ← SCARCED_* env (ludovic, 2026-08-01)
+clap = { version = "4", features = ["derive"] }
+figment = { version = "0.10", features = ["yaml", "env"] }
 
 # Errors + observability
 anyhow = "1"

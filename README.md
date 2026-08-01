@@ -38,15 +38,24 @@ just install scarce            # cargo-installs the `scarced` binary
 ## Run
 
 ```bash
-SCARCED_STUDIO_TOKEN=dev-token scarced     # or `just run` from the repo
+cp scarced.example.yaml scarced.yaml       # points at wss://scarce.communities.buzz.xyz
+scarced --config scarced.yaml              # or `just run --config scarced.yaml`
 ```
 
-| Env | Default | |
-|---|---|---|
-| `SCARCED_BIND` | `127.0.0.1:7380` | HTTP bind address |
-| `SCARCED_DB` | `sqlite://scarced.db` | projection store (droppable — rebuildable from substrates) |
-| `SCARCED_STUDIO_TOKEN` | unset | bearer token for quote issuance; unset disables those routes (fail-closed) |
-| `SCARCED_SWEEP_SECONDS` | `30` | quote-expiry sweep cadence |
+Config precedence: defaults ← YAML ← `SCARCED_*` env (figment). Nested keys
+join with `__` in env form. `--config` is optional — env-only also works:
+
+```bash
+SCARCED_STUDIO_TOKEN=dev-token scarced
+```
+
+| Key | Env | Default | |
+|---|---|---|---|
+| `bind` | `SCARCED_BIND` | `127.0.0.1:7380` | HTTP bind address |
+| `db` | `SCARCED_DB` | `sqlite://scarced.db` | projection store (droppable — rebuildable from substrates) |
+| `studio_token` | `SCARCED_STUDIO_TOKEN` | unset | bearer token for quote issuance; unset disables those routes (fail-closed) |
+| `sweep_seconds` | `SCARCED_SWEEP_SECONDS` | `30` | quote-expiry sweep cadence |
+| `buzz.relay_url` | `SCARCED_BUZZ__RELAY_URL` | unset | community relay the M3 orchestrator connects to |
 
 ## Try it
 

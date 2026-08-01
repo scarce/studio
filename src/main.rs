@@ -5,26 +5,44 @@
 use std::sync::Arc;
 
 use anyhow::Context;
+use clap::Parser;
 use studio_api::AppState;
 
 mod config;
 
+#[derive(Parser)]
+#[command(version, about = "scarced — the scarce-studio daemon")]
+struct Args {
+    /// YAML config file; SCARCED_* env vars override its keys
+    /// (nested keys join with `__`, e.g. SCARCED_BUZZ__RELAY_URL)
+    #[arg(long, value_name = "PATH")]
+    config: Option<std::path::PathBuf>,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .init();
 
-    let config = config::Config::from_env()?;
-    tracing::info!(bind = %config.bind, db = %config.db_url, "scarced starting");
+    let config = config::Config::load(args.config.as_deref())?;
+    tracing::info!(bind = %config.bind, db = %config.db, "scarced starting");
+    match &config.buzz {
+        Some(buzz) => {
+            tracing::info!(relay = %buzz.relay_url, "buzz relay configured (orchestrator consumes it in M3)")
+        }
+        None => tracing::warn!("no buzz relay configured — studio runs ledger-only"),
+    }
 
-    let db = studio_store::open(&config.db_url)
+    let db = studio_store::open(&config.db)
         .await
-        .with_context(|| format!("opening projection store at {}", config.db_url))?;
+        .with_context(|| format!("opening projection store at {}", config.db))?;
 
-    spawn_quote_expiry_sweep(db.clone(), config.sweep_interval_seconds);
+    spawn_quote_expiry_sweep(db.clone(), config.sweep_seconds);
 
     let app = studio_api::router(Arc::new(AppState {
         db,

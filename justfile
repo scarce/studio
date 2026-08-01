@@ -21,8 +21,9 @@ test:
 
 ci: fmt lint test
 
-run:
-    cargo run --bin scarced
+# `just run` or `just run --config scarced.yaml`
+run *args:
+    cargo run --bin scarced -- {{args}}
 
 # Install a target: `just install scarce [cargo install args...]`
 [positional-arguments]
