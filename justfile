@@ -24,6 +24,11 @@ ci: fmt lint test
 run:
     cargo run --bin scarced
 
+# Regenerate schemas/*.json from the studio-types derives. CI fails (drift
+# test) when a type change lands without re-running this.
+schemas:
+    cargo run -p studio-types --bin gen-schemas
+
 # Env-gated integration suites (real relay / devnet) land in M3/M5.
 # Kept separate from `ci` by design: nightly, not per-push (PLAN.md §4).
 integration-test:

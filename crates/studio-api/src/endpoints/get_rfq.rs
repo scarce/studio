@@ -1,4 +1,4 @@
-//! `GET /rfqs/{id}` — free read of a captured demand record.
+//! `GET /api/v1/rfqs/{id}` — free read of a captured demand record.
 
 use std::sync::Arc;
 

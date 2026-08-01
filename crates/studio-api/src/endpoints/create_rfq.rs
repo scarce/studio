@@ -1,10 +1,10 @@
-//! `POST /rfqs` — demand capture. Free, unsigned, frictionless: the miss
-//! record is the studio's order book; never tax it (ARCHITECTURE.md §4).
+//! `POST /api/v1/rfqs` — demand capture. Free, unsigned, frictionless: the
+//! miss record is the studio's order book; never tax it (ARCHITECTURE.md §4).
 
 use std::sync::Arc;
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
-use studio_core::{NewRfq, Rfq};
+use studio_types::NewRfq;
 
 use crate::AppState;
 
@@ -26,22 +26,20 @@ pub async fn handler(
         }
     };
 
-    if let Err(errors) = new_rfq.validate() {
-        return (
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Json(serde_json::json!({ "errors": errors })),
-        );
-    }
-
-    let rfq = Rfq {
-        id: uuid::Uuid::new_v4().to_string(),
-        query: new_rfq.query,
-        product: new_rfq.product,
-        monetization: new_rfq.monetization,
-        competition: new_rfq.competition,
-        budget_ceiling: new_rfq.budget_ceiling,
-        buyer_npub: new_rfq.buyer_npub,
-        created_at: chrono::Utc::now(),
+    // The handler only supplies identity and time; validation and assembly
+    // are the core's single capture path, shared with any future CLI/MCP.
+    let rfq = match studio_core::rfq::capture(
+        new_rfq,
+        uuid::Uuid::new_v4().to_string(),
+        chrono::Utc::now(),
+    ) {
+        Ok(rfq) => rfq,
+        Err(errors) => {
+            return (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(serde_json::json!({ "errors": errors })),
+            )
+        }
     };
 
     match studio_store::rfqs::insert(&state.db, &rfq).await {

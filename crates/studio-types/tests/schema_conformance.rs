@@ -3,7 +3,7 @@
 //! example must be accepted or rejected by *both*, or the schema has drifted
 //! from the code.
 
-use studio_core::NewRfq;
+use studio_types::NewRfq;
 
 const RFQ_SCHEMA: &str = include_str!("../../../schemas/rfq.json");
 

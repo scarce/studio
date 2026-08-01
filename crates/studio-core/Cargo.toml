@@ -6,12 +6,6 @@ license.workspace = true
 publish = false
 
 [dependencies]
-bech32 = { workspace = true }
-chrono = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-thiserror = { workspace = true }
+studio-types = { workspace = true }
 
-[dev-dependencies]
-# Keeps schemas/*.json and the Rust validation honest with each other.
-jsonschema = "0.33"
+chrono = { workspace = true }

@@ -6,7 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
-studio-core = { workspace = true }
+studio-types = { workspace = true }
 
 chrono = { workspace = true }
 serde_json = { workspace = true }

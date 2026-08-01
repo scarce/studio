@@ -1,4 +1,4 @@
-//! `GET /rfqs?since=<rfc3339>` — the order book, oldest first.
+//! `GET /api/v1/rfqs?since=<rfc3339>` — the order book, oldest first.
 
 use std::sync::Arc;
 

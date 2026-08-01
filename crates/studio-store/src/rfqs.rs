@@ -1,9 +1,9 @@
-//! Demand-ledger rows. Pure persistence — validation happened in
-//! `studio-core` before anything reaches here.
+//! Demand-ledger rows. Pure persistence — validation happened upstream
+//! (`studio-core::rfq::capture`) before anything reaches here.
 
 use chrono::{DateTime, Utc};
 use sqlx::{Row, SqlitePool};
-use studio_core::{Amount, Rfq};
+use studio_types::{Amount, Rfq};
 
 use crate::Result;
 
