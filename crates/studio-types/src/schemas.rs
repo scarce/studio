@@ -17,6 +17,7 @@ pub fn all() -> Vec<(&'static str, serde_json::Value)> {
         ("rfq", rfq()),
         ("quote", quote()),
         ("gate-policy", gate_policy()),
+        ("project", project()),
     ]
 }
 
@@ -41,6 +42,13 @@ pub fn quote() -> serde_json::Value {
 /// consumers that exchange policies outside a quote.
 pub fn gate_policy() -> serde_json::Value {
     finalize("gate-policy", schema_for!(crate::gate::GatePolicy))
+}
+
+/// `schemas/project.json` — the public project view
+/// (`GET /api/v1/projects/{id}`), rendered by the embedded `/project/{id}`
+/// page. Read-only contract: deliberately carries no commercial fields.
+pub fn project() -> serde_json::Value {
+    finalize("project", schema_for!(crate::project::Project))
 }
 
 /// Stamp the registry-level `$id` onto a generated schema. `$schema`, title,

@@ -118,11 +118,23 @@ Accept the quote (buyer, free, once — a second POST is `409`, and a lapsed
 quote refuses):
 
 ```bash
-curl -s -X POST localhost:7380/api/v1/rfqs/$RFQ_ID/quote/accept | jq .status
+curl -s -X POST localhost:7380/api/v1/rfqs/$RFQ_ID/quote/accept | jq '{status, project_url}'
 ```
 
 Acceptance stands in for funding while payments are stubbed (PLAN.md §6
-override path): the contract starts.
+override path): the contract starts, and the response carries
+`project_url` — the shareable page for the engagement.
+
+## The project page
+
+`{public_url}/project/{id}` is a super-light web app embedded in the binary
+(checked-in vanilla HTML/CSS/JS under `web/`, compiled in via `include_dir` —
+no node toolchain). It renders `GET /api/v1/projects/{id}`: the public,
+deliberately commercial-free view (title, state, milestone scope, timeline,
+workroom name — never price, splits, budget, or policy) plus onboarding
+links into Buzz. Set `public_url` in the config (e.g. `https://scarce.sh`)
+to mint links against the deployed domain; unset, links use the bind
+address for dev.
 
 ## Watch it in Buzz
 

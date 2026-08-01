@@ -2,12 +2,15 @@
 //! edges are legal, what evidence each records) arrives with the orchestrator
 //! in M3; the gate engine needs the vocabulary now.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Every state a project can occupy (PLAN.md §2). Wire names are
 /// SCREAMING_SNAKE_CASE, matching the plan's diagrams and the gate-policy
 /// edge keys.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProjectState {
     RfqCaptured,

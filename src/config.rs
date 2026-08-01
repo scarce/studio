@@ -28,6 +28,10 @@ pub struct Config {
     /// Quote-expiry sweep cadence, seconds. Reads are fail-closed against
     /// sweep lag either way; the sweep keeps the projection rows honest.
     pub sweep_seconds: u64,
+    /// Public base URL project-page links are minted against (no trailing
+    /// slash), e.g. `https://scarce.sh`. Unset = derived from `bind` for dev.
+    #[serde(default)]
+    pub public_url: Option<String>,
     /// Studio repo root holding `agents/*.persona.md`, `roster.toml` and
     /// `skills.toml` (GUIDELINES.md §3–§4). Loaded fail-closed at boot: a
     /// registry that does not parse is a scarced that does not start.
@@ -62,6 +66,7 @@ impl Default for Config {
             db: "sqlite://scarced.db".into(),
             studio_token: None,
             sweep_seconds: 30,
+            public_url: None,
             registry_dir: ".".into(),
             buzz: None,
         }
@@ -97,6 +102,13 @@ impl Config {
         }
 
         config.studio_token = config.studio_token.filter(|t| !t.trim().is_empty());
+        config.public_url = config.public_url.filter(|u| !u.trim().is_empty());
+        if let Some(url) = &config.public_url {
+            anyhow::ensure!(
+                url.starts_with("http://") || url.starts_with("https://"),
+                "public_url (SCARCED_PUBLIC_URL) must be an http(s) URL, got `{url}`"
+            );
+        }
         anyhow::ensure!(
             config.sweep_seconds > 0,
             "sweep_seconds (SCARCED_SWEEP_SECONDS) must be a positive integer"
@@ -204,6 +216,20 @@ mod tests {
             jail.set_env("SCARCED_STUDIO_TOKEN", "  ");
             let config = Config::load(None).expect("load");
             assert_eq!(config.studio_token, None);
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn public_url_must_be_http_and_empty_disables() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file("scarced.yaml", "public_url: scarce.sh\n")?;
+            let err = Config::load(Some(Path::new("scarced.yaml"))).unwrap_err();
+            assert!(err.to_string().contains("public_url"), "{err}");
+
+            jail.create_file("scarced2.yaml", "public_url: \"\"\n")?;
+            let config = Config::load(Some(Path::new("scarced2.yaml"))).expect("load");
+            assert_eq!(config.public_url, None);
             Ok(())
         });
     }

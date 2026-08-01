@@ -16,6 +16,9 @@ async fn app() -> axum::Router {
         db,
         studio_token: None,
         lifecycle: None,
+        public_url: "https://scarce.sh".into(),
+        community_web_url: Some("https://scarce.communities.buzz.xyz".into()),
+        invite_url: Default::default(),
     }))
 }
 

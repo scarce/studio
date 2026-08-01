@@ -9,6 +9,7 @@
 //! MCP) without duplicating logic.
 
 pub mod gate;
+pub mod project;
 pub mod quote;
 pub mod rfq;
 
@@ -18,5 +19,6 @@ pub use gate::{
 };
 pub use studio_types::{
     Amount, ChannelParams, Edge, EdgePattern, FieldError, GatePolicy, GateSpec, MilestoneSpec,
-    NewQuote, NewRfq, PayoutDestination, ProjectState, Quote, QuoteStatus, Rfq, Split,
+    NewQuote, NewRfq, PayoutDestination, Project, ProjectLinks, ProjectState, Quote, QuoteStatus,
+    Rfq, Split,
 };

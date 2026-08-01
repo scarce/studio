@@ -1,0 +1,176 @@
+{
+  "$defs": {
+    "ProjectLinks": {
+      "description": "Onboarding links the page renders as calls to action.",
+      "properties": {
+        "buzz_desktop": {
+          "description": "Buzz Desktop download.",
+          "type": "string"
+        },
+        "community_web": {
+          "description": "Web entry to the studio's Buzz community, when one is configured.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "invite": {
+          "description": "Community invite landing page (`https://<host>/invite/<code>`) — the\nrelay's own onboarding flow (desktop deep link, download, in-browser\nclaim). Present when the studio key can mint invites.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "buzz_desktop"
+      ],
+      "type": "object"
+    },
+    "ProjectMilestone": {
+      "description": "Milestone scope without its amount.",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "description"
+      ],
+      "type": "object"
+    },
+    "ProjectQuote": {
+      "description": "Quote facts safe for a public page — scope and schedule, no money.",
+      "properties": {
+        "accepted_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expires_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "milestones": {
+          "items": {
+            "$ref": "#/$defs/ProjectMilestone"
+          },
+          "type": "array"
+        },
+        "timeline": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "milestones",
+        "timeline",
+        "expires_at"
+      ],
+      "type": "object"
+    },
+    "ProjectState": {
+      "description": "Every state a project can occupy (PLAN.md §2). Wire names are\nSCREAMING_SNAKE_CASE, matching the plan's diagrams and the gate-policy\nedge keys.",
+      "enum": [
+        "RFQ_CAPTURED",
+        "QUOTED",
+        "LAPSED",
+        "FUNDED",
+        "WORKROOM_ACTIVE",
+        "BUILDING",
+        "DEMOED",
+        "ACCEPTED",
+        "DELIVERED",
+        "OPERATING",
+        "CLOSED_BY_BUYER",
+        "CLOSED_IDLE"
+      ],
+      "type": "string"
+    },
+    "ProjectWorkroom": {
+      "description": "The private Buzz channel where the crew works. Membership is required to\nread it — the page can only point at the door.",
+      "properties": {
+        "channel_id": {
+          "description": "Channel uuid on the community relay.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Channel display name (`proj-<slug>-<shortid>`).",
+          "type": "string"
+        },
+        "since": {
+          "description": "When the workroom opened — the contract start.",
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "channel_id",
+        "since"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://scarce.studio/schemas/project.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Public projection of one engagement, keyed by RFQ id.",
+  "properties": {
+    "created_at": {
+      "description": "When the demand was captured.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "id": {
+      "description": "The RFQ id — also the page path segment (`/project/{id}`).",
+      "type": "string"
+    },
+    "links": {
+      "$ref": "#/$defs/ProjectLinks"
+    },
+    "quote": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProjectQuote"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Public slice of the quote, present once one is issued."
+    },
+    "state": {
+      "$ref": "#/$defs/ProjectState",
+      "description": "Lifecycle state (PLAN.md §2 vocabulary)."
+    },
+    "title": {
+      "description": "The demand, verbatim — doubles as the project title.",
+      "type": "string"
+    },
+    "workroom": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProjectWorkroom"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The Buzz workroom, present once the contract started."
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "state",
+    "created_at",
+    "links"
+  ],
+  "title": "Project",
+  "type": "object"
+}

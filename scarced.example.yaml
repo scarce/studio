@@ -7,6 +7,10 @@ db: sqlite://scarced.db
 studio_token: dev-token
 sweep_seconds: 30
 
+# Public base URL project-page links are minted against — the accept
+# response returns {public_url}/project/{rfq_id}. Unset = http://<bind>.
+public_url: https://scarce.sh
+
 # Studio repo root holding agents/*.persona.md, roster.toml and skills.toml.
 # Loaded fail-closed at boot: a registry that does not parse is a scarced
 # that does not start (GUIDELINES.md §3–§4).
