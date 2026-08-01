@@ -186,6 +186,89 @@ a routing decision, not a partnership. scarce's durable advantage is then its
 demand data and reputation, which is the correct kind of moat for a protocol
 company to hold: earned, not extracted.
 
+### 8.1 Tracked, no action: RFQ negotiation between micro-agents
+
+*(per ludovic, 2026-08-01 — record the direction; build nothing yet)*
+
+Today an RFQ meets exactly one quote, take-it-or-leave-it. The tracked end
+state is that a new RFQ opens a **negotiation surface**: offers and
+counteroffers exchanged agent-to-agent until one is accepted — because the
+economy this serves is one of **deployed micro-agents** (the term going
+forward: nobody deploys "apps"; they deploy micro-agents, each a small,
+enumerated set of gated endpoints — exactly the deliverable shape
+GUIDELINES.md §2 already mandates). Both sides of a negotiation are
+micro-agents: the buyer's agent that missed the catalog, and the studio (or
+studios) bidding to fill the miss.
+
+What this decomposes into, when it is picked up:
+
+1. **A bid is just a quote that competes.** The Quote schema (§8.2) already
+   carries price, milestones, `expires_at`, and a gate policy; negotiation
+   generalizes it from *the* quote to *a* bid among several, plus a
+   `supersedes` reference for counteroffers. Accept then cites the winning
+   bid's event id — the accept endpoint's shape survives unchanged.
+2. **Negotiation history is substrate, like everything else.** Offers and
+   counters are signed events attached to the RFQ; the projection invariant
+   (ARCHITECTURE.md §1) extends to them for free, and the negotiation
+   transcript becomes replayable evidence — which matters the day a dispute
+   asks "what was actually offered?"
+3. **Multi-party bidding is the deferred multi-studio routing** (Non-goals;
+   PLAN.md §0) arriving through the front door: several studios speaking RFQ
+   bid on one demand record. The seam is already protocol-shaped; negotiation
+   is what makes the routing decision *priced* rather than configured.
+4. **Layering:** a2a-style protocols are candidates for the conversational
+   negotiation layer; MPP/x402 remain the settlement layer underneath.
+   Nothing about negotiation touches escrow semantics — a session channel
+   still opens only when one bid is accepted (§4).
+
+The only thing worth doing early is keeping the seam cheap: quotes are
+already versioned, expiring objects; nothing in the current schemas
+forecloses "many quotes per RFQ, each referencing what it counters."
+
+### 8.2 Tracked, no action: deployment economics — allowance, hosting, build loans
+
+*(per ludovic, 2026-08-01 — record the direction; build nothing yet)*
+
+Once deliverables are deployed micro-agents (Cloud Run behind the
+payment-gated agent-gateway), the studio carries operational costs on the
+buyer's behalf: container registry storage, image builds, the gateway proxy's
+own compute, KMS signing, egress. Three ideas to hold together:
+
+1. **The paywall burden is priced, not feared.** Running the gateway for
+   every hosted artifact makes the studio a platform operator — SLA,
+   metering audit, price-policy custody. The *dollar* cost is noise
+   (gateway compute is itself scale-to-zero and per-request; registry
+   storage is ~$0.10/GiB-month, so a distroless Rust image costs well under
+   1¢/month — dead artifacts are nearly free to keep listed forever). The
+   *liability* is real, and it is exactly what the operator split in the
+   gateway spec's `splits` block is for: the platform fee is the price of
+   being the paywall.
+2. **Deployment allowance in the RFQ/Quote.** Registry + build + gateway
+   onboarding + first-N-months hosting priced as an explicit line of the
+   Quote ("an allowance to get things running"), not silently absorbed.
+   Seam: the Quote schema grows an operations/allowance field when this is
+   picked up; nothing forecloses it today.
+3. **The build loan: financing as a split schedule.** If the buyer will not
+   pay upfront, the studio may finance the build; the artifact's gate then
+   routes **100% of revenue to the studio until the RFQ price is
+   reimbursed**, after which the split flips to the engagement's steady
+   state. The unifying observation: commission (buyer pays, buyer owns),
+   co-op (residual splits), and loan (repayment waterfall, then flip) are
+   all points on one line — **who finances the build determines the split
+   schedule over time**. `payoutDestination` generalizes from a constant to
+   a *schedule*; the flip is a threshold event on cumulative settled
+   revenue, evidence-cited and hash-committed like the GatePolicy, so
+   neither side can move the goalposts mid-repayment.
+
+What makes the loan underwritable is the studio's own order book: aggregated
+catalog misses are the demand signal that justifies fronting a build — the
+speculative-builds question (§9.5) and the loan are the same credit decision
+wearing different clothes. Risks recorded for the eventual design: demand
+risk transfers to the studio (price it), buyer moral hazard when nothing is
+at stake upfront (the intake fee stays), and the repayment cap must be
+explicit (principal, principal×multiple, or time-boxed) before the first
+loan is written.
+
 ## 9. Open decisions (need ludovic's call)
 
 1. **Commission vs co-op ownership.** Does the buyer own 100% of the shipped
