@@ -1,0 +1,10 @@
+# roster.toml — studio economics, keyed by persona `name` (GUIDELINES.md §3.3).
+# The persona file (agents/<name>.persona.md) carries what the runtime needs;
+# this file carries what the studio needs: identity binding and money.
+# Loaded fail-closed at scarced boot; every npub is structurally validated.
+
+[agents.ruben]
+npub = "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0nqr65xpy"
+skill_tags = ["rust", "backend", "buzz", "solana"]
+# solana_pubkey + attestation arrive with the key-binding ceremony
+# (ARCHITECTURE.md §5); day_rate is set by the owner when pricing goes live.

@@ -28,6 +28,10 @@ pub struct Config {
     /// Quote-expiry sweep cadence, seconds. Reads are fail-closed against
     /// sweep lag either way; the sweep keeps the projection rows honest.
     pub sweep_seconds: u64,
+    /// Studio repo root holding `agents/*.persona.md`, `roster.toml` and
+    /// `skills.toml` (GUIDELINES.md §3–§4). Loaded fail-closed at boot: a
+    /// registry that does not parse is a scarced that does not start.
+    pub registry_dir: String,
     /// Buzz community the studio operates in. Recorded now, consumed by the
     /// M3 orchestrator (PLAN.md M3).
     #[serde(default)]
@@ -58,6 +62,7 @@ impl Default for Config {
             db: "sqlite://scarced.db".into(),
             studio_token: None,
             sweep_seconds: 30,
+            registry_dir: ".".into(),
             buzz: None,
         }
     }
@@ -96,6 +101,10 @@ impl Config {
             config.sweep_seconds > 0,
             "sweep_seconds (SCARCED_SWEEP_SECONDS) must be a positive integer"
         );
+        anyhow::ensure!(
+            !config.registry_dir.trim().is_empty(),
+            "registry_dir (SCARCED_REGISTRY_DIR) must point at the studio repo root"
+        );
         if let Some(buzz) = &config.buzz {
             anyhow::ensure!(
                 buzz.relay_url.starts_with("wss://") || buzz.relay_url.starts_with("ws://"),
@@ -130,6 +139,7 @@ mod tests {
             assert_eq!(config.db, "sqlite://scarced.db");
             assert_eq!(config.studio_token, None);
             assert_eq!(config.sweep_seconds, 30);
+            assert_eq!(config.registry_dir, ".");
             assert!(config.buzz.is_none());
             Ok(())
         });

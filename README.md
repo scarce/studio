@@ -18,19 +18,29 @@ droppable and rebuildable from the substrates.
 
 ## Layout
 
-One binary — `scarced` (axum HTTP surface + orchestrator loop) — over five
+One binary — `scarced` (axum HTTP surface + orchestrator loop) — over seven
 crates:
 
 | Crate | Role |
 |---|---|
-| `studio-core` | domain types, schemas, state machine + gate engine (no I/O) |
+| `studio-types` | wire types + generated JSON Schemas (the API contract) |
+| `studio-core` | state machine + gate engine, pure functions (no I/O) |
 | `studio-store` | SQLite projections (rebuildable by design) |
 | `studio-buzz` | `BuzzPort`: Buzz-crate-backed impl + mock (M3) |
 | `studio-pay` | `PayPort`: stub impl through M4, live MPP session impl in M5 |
 | `studio-api` | axum routes, auth, SSE |
+| `studio-registry` | `agents/*.persona.md` + `roster.toml` + `skills.toml` loader |
 
-Implemented so far: RFQ capture (M1) and quote issuance + gate-policy engine
-(M2). The orchestrator loop and Buzz integration arrive in M3.
+Implemented so far: RFQ capture (M1), quote issuance + gate-policy engine
+(M2), the Buzz lifecycle loop (M3: ops mirror, acceptance, private
+workrooms), and the agent registry loaded fail-closed at boot.
+
+The registry (GUIDELINES.md §3–§4) is three in-repo artifacts: one
+`agents/<name>.persona.md` per agent (Buzz persona format — YAML frontmatter
+for settings, body is the system prompt), `roster.toml` for studio economics
+(npub binding, skill tags, day rate) keyed by persona name, and `skills.toml`
+pinning the convention skills personas reference by slug. `scarced` refuses
+to start on any parse or cross-reference error.
 
 ## Install
 

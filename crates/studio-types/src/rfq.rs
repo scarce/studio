@@ -142,7 +142,9 @@ impl NewRfq {
 /// Structural npub check: bech32 decodes, HRP is `npub`, payload is 32 bytes.
 /// Signature verification is a substrate concern and arrives with the
 /// orchestrator (M3); identity attribution only needs a well-formed key.
-fn validate_npub(npub: &str) -> Result<(), String> {
+/// Public because the agent registry (roster.toml) binds persona names to
+/// npubs with the same structural rule.
+pub fn validate_npub(npub: &str) -> Result<(), String> {
     let (hrp, data) =
         bech32::decode(npub).map_err(|_| "must be a bech32 npub (npub1…)".to_string())?;
     if hrp.as_str() != "npub" {
