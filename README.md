@@ -26,17 +26,76 @@ crates:
 | `studio-pay` | `PayPort`: stub impl through M4, live MPP session impl in M5 |
 | `studio-api` | axum routes, auth, SSE |
 
+Implemented so far: RFQ capture (M1) and quote issuance + gate-policy engine
+(M2). The orchestrator loop and Buzz integration arrive in M3.
+
+## Install
+
+```bash
+just install scarce            # cargo-installs the `scarced` binary
+```
+
 ## Run
 
 ```bash
-just run                       # SCARCED_BIND (default 127.0.0.1:7380),
-                               # SCARCED_DB (default sqlite://scarced.db)
-curl http://127.0.0.1:7380/healthz
+SCARCED_STUDIO_TOKEN=dev-token scarced     # or `just run` from the repo
 ```
+
+| Env | Default | |
+|---|---|---|
+| `SCARCED_BIND` | `127.0.0.1:7380` | HTTP bind address |
+| `SCARCED_DB` | `sqlite://scarced.db` | projection store (droppable — rebuildable from substrates) |
+| `SCARCED_STUDIO_TOKEN` | unset | bearer token for quote issuance; unset disables those routes (fail-closed) |
+| `SCARCED_SWEEP_SECONDS` | `30` | quote-expiry sweep cadence |
+
+## Try it
+
+The API is self-describing — start at the index:
+
+```bash
+curl -s localhost:7380/api/v1 | jq                 # every endpoint + schema links
+curl -s localhost:7380/api/v1/schemas/rfq | jq     # JSON Schema of any wire type
+```
+
+Capture demand (open, no auth — this is the signal intake):
+
+```bash
+RFQ_ID=$(curl -s localhost:7380/api/v1/rfqs --json '{
+  "query": "solana priority fee forecast api",
+  "buyer_npub": "npub1vadgs8qfwsgf7ak3jqvsys6dprae6eyyzzwr8v345l39yz77af4s7eg4zn"
+}' | jq -r .id)
+```
+
+Invalid input returns `422` with `{ "errors": [{ "field", "message" }] }`.
+
+Issue the quote (studio-authenticated; one per RFQ — a second POST is `409`):
+
+```bash
+curl -s localhost:7380/api/v1/rfqs/$RFQ_ID/quote \
+  -H 'authorization: Bearer dev-token' --json '{
+  "price": { "amount": 250000000, "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" },
+  "milestones": [
+    { "title": "Forecast model", "description": "p50/p90 per program id",     "amount": 150000000 },
+    { "title": "Gated endpoint", "description": "pay.sh-gated REST endpoint", "amount": 100000000 }
+  ],
+  "timeline": "2 weeks, weekly demos",
+  "payout_destination": { "kind": "splits", "splits": [
+    { "recipient": "CrewAgentA111111111111111111111111111111111", "bps": 10000 }
+  ]},
+  "channel": { "idle_timeout_seconds": 604800 },
+  "expires_at": "2026-09-01T00:00:00Z"
+}' | jq
+```
+
+The response carries the defaulted studio gate policy and its `policy_hash`
+commitment. The buyer read is free: `GET /api/v1/rfqs/$RFQ_ID/quote` — status
+is computed fail-closed against `expires_at`, so a lapsed quote reads
+`LAPSED` even before the sweep stamps it.
 
 ## Develop
 
 ```bash
 just ci        # fmt + clippy -D warnings + test — what CI runs
+just schemas   # regenerate schemas/*.json from studio-types (drift-tested in CI)
 just --list    # everything else
 ```
