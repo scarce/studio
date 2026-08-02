@@ -1,8 +1,8 @@
-//! Commission brief — the intake interview's structured output (jude's
-//! commission-flow draft-00, thread 6873a1ec; slice 1).
+//! Capability brief — the intake interview's structured output (jude's
+//! capability-request draft-00, thread 6873a1ec; slice 1).
 //!
 //! The brief rides an RFQ when the demand comes through the pay-side
-//! commission path: the buyer's *own* model runs the interview, so the brief
+//! intake path: the buyer's *own* model runs the interview, so the brief
 //! is the buyer's signed representation, never something the studio must
 //! trust. Three things dominate micro-agent opex — freshness (a cron burns
 //! money whether or not anyone calls), paid upstream dependencies, and
@@ -15,11 +15,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::rfq::{Amount, FieldError};
 
-/// The commission brief carried by an RFQ from the pay intake path.
+/// The capability brief carried by an RFQ from the pay intake path.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[schemars(
-    title = "Commission brief",
+    title = "Capability brief",
     description = "Structured output of the pay-side intake interview. example_exchange doubles as the delivery acceptance check (the default endpoint-live gate validates against it); freshness decides the monetization shape (scheduled work breaks scale-to-zero economics); upstream_dependencies carry the dominant opex."
 )]
 pub struct Brief {

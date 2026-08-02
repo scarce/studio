@@ -75,8 +75,8 @@ async fn post_get_round_trip() {
 }
 
 #[tokio::test]
-async fn commission_path_rfq_round_trips() {
-    // The pay-side shape (commission-flow draft-00 slice 1): Solana-keyed
+async fn pay_intake_rfq_round_trips() {
+    // The pay-side shape (capability-request draft-00 slice 1): Solana-keyed
     // buyer, no npub, brief from the intake interview.
     let app = app().await;
 

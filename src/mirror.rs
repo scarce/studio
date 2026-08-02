@@ -80,7 +80,7 @@ async fn mirror_one<B: BuzzPort>(
             // The workroom is private — the buyer must be a member to see
             // it. Best-effort with its own loud log: a failed add must not
             // lose the contract post or the evidence row above.
-            // Membership is npub-keyed; a Solana-only buyer (pay commission
+            // Membership is npub-keyed; a Solana-only buyer (pay intake
             // path) reaches the workroom via the operator until the
             // npub↔Ed25519 binding lands.
             match &rfq.buyer_npub {

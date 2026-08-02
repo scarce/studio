@@ -62,7 +62,7 @@
         "state",
         "interface"
       ],
-      "title": "Commission brief",
+      "title": "Capability brief",
       "type": "object"
     },
     "ComputeClass": {

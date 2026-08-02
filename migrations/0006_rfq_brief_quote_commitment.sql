@@ -1,6 +1,6 @@
--- Commission-flow draft-00 slice 1 (thread 6873a1ec).
+-- Capability-request flow draft-00 slice 1 (jude's spec, thread 6873a1ec).
 --
--- rfqs: buyer identity becomes a union — the pay-side commission path
+-- rfqs: buyer identity becomes a union — the pay-side intake path
 -- submits with the Solana key the buyer will fund the engagement with,
 -- direct captures keep using the npub. At least one is required; the CHECK
 -- keeps the invariant at the storage layer too. `brief` carries the intake
@@ -25,7 +25,7 @@ CREATE TABLE rfqs_new (
     buyer_npub          TEXT,
     buyer_solana_pubkey TEXT,
     buyer_signature     TEXT,
-    brief               TEXT,                       -- JSON commission brief
+    brief               TEXT,                       -- JSON capability brief
     created_at          TEXT NOT NULL,              -- RFC 3339, UTC
     CHECK (buyer_npub IS NOT NULL OR buyer_solana_pubkey IS NOT NULL)
 ) STRICT;

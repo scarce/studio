@@ -46,7 +46,7 @@ pub struct NewRfq {
     #[serde(default)]
     pub budget_ceiling: Option<Amount>,
     /// Buyer identity, Nostr side. At least one of `buyer_npub` /
-    /// `buyer_solana_pubkey` is required — the commission path (jude's
+    /// `buyer_solana_pubkey` is required — the pay intake path (jude's
     /// draft-00) submits with the Solana key it will pay with, direct
     /// captures keep using the npub.
     #[serde(default)]
@@ -67,7 +67,7 @@ pub struct NewRfq {
     #[serde(default)]
     #[schemars(length(min = 1))]
     pub buyer_signature: Option<String>,
-    /// Commission brief from the pay-side intake interview. Optional —
+    /// Capability brief from the pay-side intake interview. Optional —
     /// direct captures stay frictionless; when present it must be
     /// structurally sound (it is agent-assembled, not human-typed).
     #[serde(default)]

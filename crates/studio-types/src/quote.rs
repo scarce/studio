@@ -33,7 +33,7 @@ pub struct NewQuote {
     pub payout_destination: PayoutDestination,
     pub channel: ChannelParams,
     /// The 402-gated URL acceptance opens the MPP session against (jude's
-    /// commission-flow draft-00 §4): deposit = price, terms from `channel`,
+    /// capability-request draft-00 §4): deposit = price, terms from `channel`,
     /// payee = `payout_destination`.
     #[schemars(length(min = 1), extend("format" = "uri"))]
     pub engagement_endpoint: String,

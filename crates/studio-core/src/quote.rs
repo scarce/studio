@@ -11,7 +11,7 @@ use crate::gate::commitment_hash;
 
 /// Validate `new` against `now` and assemble the issued quote, including the
 /// gate-policy commitment hash (PLAN.md §2.1(4)) and the quote's own
-/// commitment hash (commission-flow draft-00 §4 — session terms hash-commit
+/// commitment hash (capability-request draft-00 §4 — session terms hash-commit
 /// the quote at accept). The single path from submission to `Quote` —
 /// handlers only supply `rfq_id`, `id`, and `now`.
 pub fn issue(

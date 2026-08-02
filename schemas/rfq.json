@@ -62,7 +62,7 @@
         "state",
         "interface"
       ],
-      "title": "Commission brief",
+      "title": "Capability brief",
       "type": "object"
     },
     "ComputeClass": {
@@ -262,7 +262,7 @@
         }
       ],
       "default": null,
-      "description": "Commission brief from the pay-side intake interview. Optional —\ndirect captures stay frictionless; when present it must be\nstructurally sound (it is agent-assembled, not human-typed)."
+      "description": "Capability brief from the pay-side intake interview. Optional —\ndirect captures stay frictionless; when present it must be\nstructurally sound (it is agent-assembled, not human-typed)."
     },
     "budget_ceiling": {
       "anyOf": [
@@ -278,7 +278,7 @@
     },
     "buyer_npub": {
       "default": null,
-      "description": "Buyer identity, Nostr side. At least one of `buyer_npub` /\n`buyer_solana_pubkey` is required — the commission path (jude's\ndraft-00) submits with the Solana key it will pay with, direct\ncaptures keep using the npub.",
+      "description": "Buyer identity, Nostr side. At least one of `buyer_npub` /\n`buyer_solana_pubkey` is required — the pay intake path (jude's\ndraft-00) submits with the Solana key it will pay with, direct\ncaptures keep using the npub.",
       "pattern": "^npub1[02-9ac-hj-np-z]{58}$",
       "type": [
         "string",
