@@ -44,7 +44,13 @@ pub async fn handler(
 
     match studio_store::rfqs::insert(&state.db, &rfq).await {
         Ok(()) => {
-            tracing::info!(rfq_id = %rfq.id, buyer = %rfq.buyer_npub, "rfq captured");
+            // Identity union: log whichever buyer key the capture carried.
+            let buyer = rfq
+                .buyer_npub
+                .as_deref()
+                .or(rfq.buyer_solana_pubkey.as_deref())
+                .unwrap_or("<none>");
+            tracing::info!(rfq_id = %rfq.id, buyer, "rfq captured");
             state.emit(crate::LifecycleBeat::DemandCaptured {
                 rfq: Box::new(rfq.clone()),
             });

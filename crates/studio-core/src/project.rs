@@ -101,8 +101,12 @@ mod tests {
                 amount: 900_000_000,
                 mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".into(),
             }),
-            buyer_npub: "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0nqr65xpy".into(),
+            buyer_npub: Some(
+                "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0nqr65xpy".into(),
+            ),
+            buyer_solana_pubkey: None,
             buyer_signature: None,
+            brief: None,
             created_at: ts("2026-08-01T14:00:00Z"),
         }
     }
@@ -133,12 +137,16 @@ mod tests {
             },
             gate_policy: studio_types::GatePolicy::studio_default(),
             policy_hash: "ab".repeat(32),
+            quote_hash: String::new(),
+            engagement_endpoint:
+                "https://scarce.sh/api/v1/engagements/3f6b2c1a-0000-4000-8000-000000000000".into(),
             expires_at: ts("2026-09-01T00:00:00Z"),
             status,
             created_at: ts("2026-08-01T15:00:00Z"),
             lapsed_at: None,
             accepted_at: (status == QuoteStatus::Accepted).then(|| ts("2026-08-01T16:00:00Z")),
         }
+        .with_commitment_hash()
     }
 
     fn links() -> ProjectLinks {

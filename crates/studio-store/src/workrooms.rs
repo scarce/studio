@@ -76,9 +76,12 @@ mod tests {
                 monetization: None,
                 competition: vec![],
                 budget_ceiling: None,
-                buyer_npub: "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0nqr65xpy"
-                    .into(),
+                buyer_npub: Some(
+                    "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0nqr65xpy".into(),
+                ),
+                buyer_solana_pubkey: None,
                 buyer_signature: None,
+                brief: None,
                 created_at: ts("2026-08-01T14:00:00Z"),
             },
         )

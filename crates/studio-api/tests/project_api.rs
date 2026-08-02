@@ -85,6 +85,7 @@ async fn contract(app: &axum::Router) -> String {
                 { "recipient": "CrewAgentA111111111111111111111111111111111", "bps": 10000 }
             ]},
             "channel": { "idle_timeout_seconds": 604_800 },
+            "engagement_endpoint": "https://scarce.sh/api/v1/engagements/rfq-1",
             "expires_at": "2099-01-01T00:00:00Z"
         })),
     )

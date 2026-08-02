@@ -75,6 +75,57 @@ async fn post_get_round_trip() {
 }
 
 #[tokio::test]
+async fn pay_intake_rfq_round_trips() {
+    // The pay-side shape (capability-request draft-00 slice 1): Solana-keyed
+    // buyer, no npub, brief from the intake interview.
+    let app = app().await;
+
+    let (status, created) = send(
+        &app,
+        "POST",
+        "/api/v1/rfqs",
+        Some(serde_json::json!({
+            "query": "solana priority fee forecast api",
+            "buyer_solana_pubkey": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "brief": {
+                "example_exchange": {
+                    "request": { "program_id": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4" },
+                    "response": { "p50_lamports": 12000, "p90_lamports": 55000 }
+                },
+                "freshness": { "kind": "cached", "ttl_seconds": 30 },
+                "upstream_dependencies": [
+                    { "name": "helius rpc", "est_cost_per_call": { "amount": 10, "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" } }
+                ],
+                "volume": { "calls_per_month": 50_000, "avg_request_bytes": 128, "avg_response_bytes": 512 },
+                "compute_class": "cpu",
+                "state": { "kind": "cache" },
+                "interface": "request_response"
+            }
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    assert_eq!(created["buyer_npub"], serde_json::Value::Null);
+    assert_eq!(created["brief"]["freshness"]["kind"], "cached");
+
+    let id = created["id"].as_str().expect("id assigned");
+    let (status, fetched) = send(&app, "GET", &format!("/api/v1/rfqs/{id}"), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(fetched, created, "brief survives the store round trip");
+
+    // No identity at all refuses at the door.
+    let (status, body) = send(
+        &app,
+        "POST",
+        "/api/v1/rfqs",
+        Some(serde_json::json!({ "query": "anything" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(body["errors"][0]["field"], "buyer_npub");
+}
+
+#[tokio::test]
 async fn invalid_rfq_gets_422_with_field_errors() {
     let app = app().await;
 

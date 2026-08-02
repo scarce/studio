@@ -80,15 +80,22 @@ async fn mirror_one<B: BuzzPort>(
             // The workroom is private — the buyer must be a member to see
             // it. Best-effort with its own loud log: a failed add must not
             // lose the contract post or the evidence row above.
-            match studio_buzz::pubkey_hex(&rfq.buyer_npub) {
-                Ok(buyer_hex) => {
-                    if let Err(e) = buzz.add_member(created.channel_id, &buyer_hex).await {
-                        tracing::error!(error = %e, rfq_id = %rfq.id,
-                            channel_id = %created.channel_id, "buyer not added to workroom");
+            // Membership is npub-keyed; a Solana-only buyer (pay intake
+            // path) reaches the workroom via the operator until the
+            // npub↔Ed25519 binding lands.
+            match &rfq.buyer_npub {
+                Some(npub) => match studio_buzz::pubkey_hex(npub) {
+                    Ok(buyer_hex) => {
+                        if let Err(e) = buzz.add_member(created.channel_id, &buyer_hex).await {
+                            tracing::error!(error = %e, rfq_id = %rfq.id,
+                                channel_id = %created.channel_id, "buyer not added to workroom");
+                        }
                     }
-                }
-                Err(e) => tracing::error!(error = %e, rfq_id = %rfq.id,
-                    "buyer npub does not decode; not added to workroom"),
+                    Err(e) => tracing::error!(error = %e, rfq_id = %rfq.id,
+                        "buyer npub does not decode; not added to workroom"),
+                },
+                None => tracing::info!(rfq_id = %rfq.id,
+                    "buyer has no npub (solana-keyed rfq); not added to workroom"),
             }
             let project_url = format!("{public_url}/project/{}", rfq.id);
             buzz.post(
@@ -118,6 +125,15 @@ fn workroom_about(rfq: &Rfq, quote: &Quote) -> String {
     )
 }
 
+/// Whichever buyer identity the capture carried (at least one always is —
+/// capture refuses otherwise).
+fn buyer_label(rfq: &Rfq) -> &str {
+    rfq.buyer_npub
+        .as_deref()
+        .or(rfq.buyer_solana_pubkey.as_deref())
+        .unwrap_or("<none>")
+}
+
 fn budget_line(rfq: &Rfq) -> String {
     match &rfq.budget_ceiling {
         Some(amount) => format!("{} (mint `{}`)", amount.amount, amount.mint),
@@ -130,7 +146,7 @@ fn demand_post(rfq: &Rfq) -> String {
         "📥 demand captured — rfq `{}`\n> {}\nbuyer `{}` · budget {}",
         rfq.id,
         rfq.query,
-        rfq.buyer_npub,
+        buyer_label(rfq),
         budget_line(rfq),
     )
 }
@@ -156,7 +172,7 @@ fn accepted_post(rfq: &Rfq, quote: &Quote) -> String {
             .accepted_at
             .map(|t| t.to_rfc3339())
             .unwrap_or_else(|| "?".into()),
-        rfq.buyer_npub,
+        buyer_label(rfq),
         quote.price.amount,
         quote.price.mint,
     )
@@ -196,8 +212,12 @@ mod tests {
             monetization: None,
             competition: vec![],
             budget_ceiling: None,
-            buyer_npub: "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0nqr65xpy".into(),
+            buyer_npub: Some(
+                "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0nqr65xpy".into(),
+            ),
+            buyer_solana_pubkey: None,
             buyer_signature: None,
+            brief: None,
             created_at: ts("2026-08-01T14:00:00Z"),
         }
     }
@@ -228,12 +248,16 @@ mod tests {
             },
             gate_policy: studio_types::GatePolicy::studio_default(),
             policy_hash: "hash".into(),
+            quote_hash: String::new(),
+            engagement_endpoint:
+                "https://scarce.sh/api/v1/engagements/9e342a83-429b-4887-9cae-6ddecd78f7c5".into(),
             expires_at: ts("2026-09-01T00:00:00Z"),
             status: QuoteStatus::Accepted,
             created_at: ts("2026-08-01T15:00:00Z"),
             lapsed_at: None,
             accepted_at: Some(ts("2026-08-01T16:00:00Z")),
         }
+        .with_commitment_hash()
     }
 
     #[test]
@@ -275,7 +299,7 @@ mod tests {
             matches!(&calls[1], MockCall::CreateChannel { name, .. } if name.starts_with("proj-solana-priority"))
         );
         // the buyer is added to the (private) workroom before the contract post
-        let expected_buyer = studio_buzz::pubkey_hex(&rfq().buyer_npub).unwrap();
+        let expected_buyer = studio_buzz::pubkey_hex(rfq().buyer_npub.as_deref().unwrap()).unwrap();
         assert!(
             matches!(&calls[2], MockCall::AddMember { channel_id, pubkey_hex }
             if *channel_id != ops && *pubkey_hex == expected_buyer)
