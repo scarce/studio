@@ -99,6 +99,7 @@ fn valid_quote() -> serde_json::Value {
             { "recipient": "CrewAgentB111111111111111111111111111111111", "bps": 3000 }
         ]},
         "channel": { "grace_seconds": 172_800, "idle_timeout_seconds": 604_800 },
+        "engagement_endpoint": "https://scarce.sh/api/v1/engagements/rfq-1",
         "expires_at": "2026-08-08T15:00:00Z"
     })
 }

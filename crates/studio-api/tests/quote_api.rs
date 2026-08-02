@@ -78,6 +78,7 @@ fn quote_body(expires_at: &str) -> serde_json::Value {
             { "recipient": "CrewAgentA111111111111111111111111111111111", "bps": 10000 }
         ]},
         "channel": { "idle_timeout_seconds": 604_800 },
+        "engagement_endpoint": "https://scarce.sh/api/v1/engagements/rfq-1",
         "expires_at": expires_at
     })
 }
@@ -110,6 +111,17 @@ async fn quote_round_trip_with_defaults_applied() {
     assert!(created["gate_policy"]["edges"]["QUOTED->FUNDED"].is_array());
     assert!(created["created_at"].is_string());
     assert_eq!(created["lapsed_at"], serde_json::Value::Null);
+    // commission-flow seam: the funding target and the quote commitment the
+    // session terms hash-commit at accept are both on the record
+    assert_eq!(
+        created["engagement_endpoint"],
+        "https://scarce.sh/api/v1/engagements/rfq-1"
+    );
+    assert_eq!(
+        created["quote_hash"].as_str().map(str::len),
+        Some(64),
+        "quote hash sealed at issue"
+    );
 
     // buyer read is free (no bearer) and identical
     let (status, fetched) = send(

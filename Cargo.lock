@@ -353,6 +353,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
 
 [[package]]
+name = "bs58"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf88ba1141d185c399bee5288d850d63b8369520c1eafc32a0430b5b6c287bf4"
+dependencies = [
+ "tinyvec",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3023,11 +3032,14 @@ name = "studio-types"
 version = "0.1.0"
 dependencies = [
  "bech32",
+ "bs58",
  "chrono",
  "jsonschema",
  "schemars",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
+ "url",
 ]
 
 [[package]]

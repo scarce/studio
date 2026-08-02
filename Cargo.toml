@@ -67,8 +67,10 @@ schemars = { version = "1", features = ["chrono04"] }
 
 # Domain
 bech32 = "0.11"
+bs58 = "0.5"
 chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.10"
+url = "2"
 uuid = { version = "1", features = ["v4"] }
 
 # Configuration — defaults ← YAML ← SCARCED_* env (ludovic, 2026-08-01)

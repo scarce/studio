@@ -14,9 +14,9 @@ pub async fn insert(pool: &SqlitePool, quote: &Quote) -> Result<()> {
         "INSERT INTO quotes (rfq_id, id, price_amount, price_mint, milestones,
                              timeline, payout_destination, grace_seconds,
                              idle_timeout_seconds, gate_policy, policy_hash,
-                             expires_at, status, created_at, lapsed_at,
-                             accepted_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+                             engagement_endpoint, expires_at, status,
+                             created_at, lapsed_at, accepted_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
     )
     .bind(&quote.rfq_id)
     .bind(&quote.id)
@@ -29,6 +29,7 @@ pub async fn insert(pool: &SqlitePool, quote: &Quote) -> Result<()> {
     .bind(quote.channel.idle_timeout_seconds as i64)
     .bind(serde_json::to_string(&quote.gate_policy).expect("gate policy serializes"))
     .bind(&quote.policy_hash)
+    .bind(&quote.engagement_endpoint)
     .bind(quote.expires_at.to_rfc3339())
     .bind(status_str(quote.status))
     .bind(quote.created_at.to_rfc3339())
@@ -114,6 +115,8 @@ fn from_row(row: sqlx::sqlite::SqliteRow) -> Result<Quote> {
     let status: String = row.get("status");
     let lapsed_at: Option<String> = row.get("lapsed_at");
     let accepted_at: Option<String> = row.get("accepted_at");
+    // quote_hash is derived, never stored (studio-types Quote docs) — the
+    // sealing step below recomputes it from the commitment fields.
     Ok(Quote {
         id: row.get("id"),
         rfq_id: row.get("rfq_id"),
@@ -130,6 +133,8 @@ fn from_row(row: sqlx::sqlite::SqliteRow) -> Result<Quote> {
         },
         gate_policy: json("gate_policy", row.get("gate_policy"))?,
         policy_hash: row.get("policy_hash"),
+        engagement_endpoint: row.get("engagement_endpoint"),
+        quote_hash: String::new(),
         expires_at: ts("expires_at", row.get("expires_at"))?,
         status: match status.as_str() {
             "QUOTED" => QuoteStatus::Quoted,
@@ -140,7 +145,8 @@ fn from_row(row: sqlx::sqlite::SqliteRow) -> Result<Quote> {
         created_at: ts("created_at", row.get("created_at"))?,
         lapsed_at: lapsed_at.map(|raw| ts("lapsed_at", raw)).transpose()?,
         accepted_at: accepted_at.map(|raw| ts("accepted_at", raw)).transpose()?,
-    })
+    }
+    .with_commitment_hash())
 }
 
 #[cfg(test)]
@@ -165,9 +171,12 @@ mod tests {
                     monetization: None,
                     competition: vec![],
                     budget_ceiling: None,
-                    buyer_npub: "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0nqr65xpy"
-                        .into(),
+                    buyer_npub: Some(
+                        "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0nqr65xpy".into(),
+                    ),
+                    buyer_solana_pubkey: None,
                     buyer_signature: None,
+                    brief: None,
                     created_at: ts("2026-08-01T14:00:00Z"),
                 },
             )
@@ -210,13 +219,16 @@ mod tests {
                 idle_timeout_seconds: 604_800,
             },
             policy_hash: "policy-hash-set-at-issue-time".into(),
+            quote_hash: String::new(),
             gate_policy,
+            engagement_endpoint: format!("https://scarce.sh/api/v1/engagements/{rfq_id}"),
             expires_at: ts(expires_at),
             status: QuoteStatus::Quoted,
             created_at: ts("2026-08-01T15:00:00Z"),
             lapsed_at: None,
             accepted_at: None,
         }
+        .with_commitment_hash()
     }
 
     #[tokio::test]

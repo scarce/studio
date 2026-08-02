@@ -10,8 +10,10 @@ use studio_types::{FieldError, NewQuote, Quote, QuoteStatus};
 use crate::gate::commitment_hash;
 
 /// Validate `new` against `now` and assemble the issued quote, including the
-/// gate-policy commitment hash (PLAN.md §2.1(4)). The single path from
-/// submission to `Quote` — handlers only supply `rfq_id`, `id`, and `now`.
+/// gate-policy commitment hash (PLAN.md §2.1(4)) and the quote's own
+/// commitment hash (commission-flow draft-00 §4 — session terms hash-commit
+/// the quote at accept). The single path from submission to `Quote` —
+/// handlers only supply `rfq_id`, `id`, and `now`.
 pub fn issue(
     new: NewQuote,
     rfq_id: String,
@@ -23,18 +25,21 @@ pub fn issue(
         id,
         rfq_id,
         policy_hash: commitment_hash(&new.gate_policy),
+        quote_hash: String::new(),
         price: new.price,
         milestones: new.milestones,
         timeline: new.timeline,
         payout_destination: new.payout_destination,
         channel: new.channel,
+        engagement_endpoint: new.engagement_endpoint,
         gate_policy: new.gate_policy,
         expires_at: new.expires_at,
         status: QuoteStatus::Quoted,
         created_at: now,
         lapsed_at: None,
         accepted_at: None,
-    })
+    }
+    .with_commitment_hash())
 }
 
 /// Why an acceptance was refused. Fail-closed like the gate engine: anything
@@ -91,13 +96,14 @@ mod tests {
                 grace_seconds: 172_800,
                 idle_timeout_seconds: 3_600,
             },
+            engagement_endpoint: "https://scarce.sh/api/v1/engagements/rfq-1".into(),
             gate_policy: GatePolicy::studio_default(),
             expires_at: ts("2026-08-08T15:00:00Z"),
         }
     }
 
     #[test]
-    fn issue_assigns_identity_time_status_and_policy_hash() {
+    fn issue_assigns_identity_time_status_and_both_hashes() {
         let now = ts("2026-08-01T15:00:00Z");
         let quote = issue(valid(), "rfq-1".into(), "q-1".into(), now).unwrap();
         assert_eq!(quote.id, "q-1");
@@ -109,6 +115,8 @@ mod tests {
             quote.policy_hash,
             commitment_hash(&GatePolicy::studio_default())
         );
+        // sealed at issue: the recorded hash is the recomputable commitment
+        assert_eq!(quote.quote_hash, quote.commitment_hash());
     }
 
     #[test]

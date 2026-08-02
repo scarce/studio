@@ -303,6 +303,9 @@
       "format": "date-time",
       "type": "string"
     },
+    "engagement_endpoint": {
+      "type": "string"
+    },
     "expires_at": {
       "format": "date-time",
       "type": "string"
@@ -337,6 +340,10 @@
     "price": {
       "$ref": "#/$defs/Amount"
     },
+    "quote_hash": {
+      "description": "SHA-256 (hex) over the canonical JSON of the quote's immutable\ncommitment fields, in this exact order: id, rfq_id, price,\nmilestones, timeline, payout_destination, channel,\nengagement_endpoint, policy_hash, expires_at (lifecycle fields —\nstatus, created_at, lapsed_at, accepted_at — are excluded). Same\ncanonicalization as policy_hash. Session terms hash-commit the quote\nthrough this value at accept, so what is funded is provably what was\nquoted. Derived from the fields, never stored — it cannot go stale.",
+      "type": "string"
+    },
     "rfq_id": {
       "type": "string"
     },
@@ -355,8 +362,10 @@
     "timeline",
     "payout_destination",
     "channel",
+    "engagement_endpoint",
     "gate_policy",
     "policy_hash",
+    "quote_hash",
     "expires_at",
     "status",
     "created_at"

@@ -283,6 +283,12 @@
     "channel": {
       "$ref": "#/$defs/ChannelParams"
     },
+    "engagement_endpoint": {
+      "description": "The 402-gated URL acceptance opens the MPP session against (jude's\ncommission-flow draft-00 §4): deposit = price, terms from `channel`,\npayee = `payout_destination`.",
+      "format": "uri",
+      "minLength": 1,
+      "type": "string"
+    },
     "expires_at": {
       "description": "Past this instant the quote is LAPSED and cannot be accepted.",
       "format": "date-time",
@@ -355,6 +361,7 @@
     "timeline",
     "payout_destination",
     "channel",
+    "engagement_endpoint",
     "expires_at"
   ],
   "title": "Quote submission",

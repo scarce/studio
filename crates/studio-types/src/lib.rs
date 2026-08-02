@@ -7,6 +7,7 @@
 //! drift from the code. Field validation lives next to the types; state
 //! machines and orchestration logic stay in `studio-core`.
 
+pub mod brief;
 pub mod gate;
 pub mod project;
 pub mod quote;
@@ -14,10 +15,14 @@ pub mod rfq;
 pub mod schemas;
 pub mod state;
 
+pub use brief::{
+    Brief, ComputeClass, ExampleExchange, Freshness, InterfaceKind, StateRequirement,
+    UpstreamDependency, VolumeBand,
+};
 pub use gate::{GatePolicy, GateSpec};
 pub use project::{Project, ProjectLinks, ProjectMilestone, ProjectQuote, ProjectWorkroom};
 pub use quote::{
     ChannelParams, MilestoneSpec, NewQuote, PayoutDestination, Quote, QuoteStatus, Split,
 };
-pub use rfq::{validate_npub, Amount, FieldError, NewRfq, Rfq};
+pub use rfq::{validate_npub, validate_solana_pubkey, Amount, FieldError, NewRfq, Rfq};
 pub use state::{Edge, EdgePattern, ProjectState};

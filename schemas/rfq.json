@@ -21,6 +21,230 @@
         "mint"
       ],
       "type": "object"
+    },
+    "Brief": {
+      "additionalProperties": false,
+      "description": "Structured output of the pay-side intake interview. example_exchange doubles as the delivery acceptance check (the default endpoint-live gate validates against it); freshness decides the monetization shape (scheduled work breaks scale-to-zero economics); upstream_dependencies carry the dominant opex.",
+      "properties": {
+        "compute_class": {
+          "$ref": "#/$defs/ComputeClass"
+        },
+        "example_exchange": {
+          "$ref": "#/$defs/ExampleExchange",
+          "description": "A mocked request/response of the endpoint the buyer wishes existed —\nsimultaneously the studio's estimation input and the delivery\nacceptance test."
+        },
+        "freshness": {
+          "$ref": "#/$defs/Freshness"
+        },
+        "interface": {
+          "$ref": "#/$defs/InterfaceKind"
+        },
+        "state": {
+          "$ref": "#/$defs/StateRequirement"
+        },
+        "upstream_dependencies": {
+          "default": [],
+          "description": "Paid third-party APIs the capability would sit on.",
+          "items": {
+            "$ref": "#/$defs/UpstreamDependency"
+          },
+          "type": "array"
+        },
+        "volume": {
+          "$ref": "#/$defs/VolumeBand"
+        }
+      },
+      "required": [
+        "example_exchange",
+        "freshness",
+        "volume",
+        "compute_class",
+        "state",
+        "interface"
+      ],
+      "title": "Commission brief",
+      "type": "object"
+    },
+    "ComputeClass": {
+      "enum": [
+        "proxy",
+        "cpu",
+        "gpu"
+      ],
+      "type": "string"
+    },
+    "ExampleExchange": {
+      "additionalProperties": false,
+      "description": "The exchange the buyer wishes existed. Arbitrary JSON on both sides —\nthis is an example, not a schema.",
+      "properties": {
+        "request": true,
+        "response": true
+      },
+      "required": [
+        "request",
+        "response"
+      ],
+      "type": "object"
+    },
+    "Freshness": {
+      "description": "How fresh the answer must be. Not a sizing detail: `scheduled` flips the\nmonetization shape from per-call to retainer, so the intake interview\nbranches on it.",
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "realtime",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "cached",
+              "type": "string"
+            },
+            "ttl_seconds": {
+              "format": "uint64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "ttl_seconds"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "cron": {
+              "description": "Cron expression for the refresh job.",
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "const": "scheduled",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "cron"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "InterfaceKind": {
+      "enum": [
+        "request_response",
+        "webhook_push",
+        "dataset"
+      ],
+      "type": "string"
+    },
+    "StateRequirement": {
+      "description": "What the capability must remember between calls.",
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "none",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "cache",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "gib": {
+              "format": "uint64",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "durable",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "gib"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "UpstreamDependency": {
+      "additionalProperties": false,
+      "description": "One paid upstream the capability depends on. Cost per call is the one\nnumber the buyer's agent should live-check rather than guess.",
+      "properties": {
+        "est_cost_per_call": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Amount"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "VolumeBand": {
+      "additionalProperties": false,
+      "description": "Estimated traffic, for sizing. Byte averages may be zero (a bodiless GET\nhas no request bytes); the call count may not.",
+      "properties": {
+        "avg_request_bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "avg_response_bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "calls_per_month": {
+          "format": "uint64",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "calls_per_month",
+        "avg_request_bytes",
+        "avg_response_bytes"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://scarce.studio/schemas/rfq.json",
@@ -28,6 +252,18 @@
   "additionalProperties": false,
   "description": "A demand record captured from a pay.sh catalog miss. Capture is deliberately frictionless: only the query and the buyer identity are required (DESIGN.md §2 — never tax the order book). This is the wire shape of POST /api/v1/rfqs; the studio assigns id and created_at.",
   "properties": {
+    "brief": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Brief"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Commission brief from the pay-side intake interview. Optional —\ndirect captures stay frictionless; when present it must be\nstructurally sound (it is agent-assembled, not human-typed)."
+    },
     "budget_ceiling": {
       "anyOf": [
         {
@@ -41,14 +277,27 @@
       "description": "Budget signal, not a commitment."
     },
     "buyer_npub": {
-      "description": "Buyer identity — the Nostr npub it will later pay with.",
+      "default": null,
+      "description": "Buyer identity, Nostr side. At least one of `buyer_npub` /\n`buyer_solana_pubkey` is required — the commission path (jude's\ndraft-00) submits with the Solana key it will pay with, direct\ncaptures keep using the npub.",
       "pattern": "^npub1[02-9ac-hj-np-z]{58}$",
-      "type": "string"
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "buyer_signature": {
       "default": null,
       "description": "Reserved for the buyer-authored upgrade path (archy, 2026-08-01 M1\nboundary): a SIWX-style signature over the submission by\n`buyer_npub`, making the RFQ counterparty-signed substrate instead\nof studio self-attestation (ARCHITECTURE.md §1). Recorded, not yet\nverified — like the delivery attestation field (PLAN.md §0).",
       "minLength": 1,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "buyer_solana_pubkey": {
+      "default": null,
+      "description": "Buyer identity, Solana side — the ed25519 key the buyer will fund\nthe engagement with. Structural check here (base58, 32 bytes);\non-curve is implied by signature verification when it lands\n(slice 2).",
+      "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
       "type": [
         "string",
         "null"
@@ -85,8 +334,7 @@
     }
   },
   "required": [
-    "query",
-    "buyer_npub"
+    "query"
   ],
   "title": "RFQ submission",
   "type": "object"

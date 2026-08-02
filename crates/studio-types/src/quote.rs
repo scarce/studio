@@ -9,6 +9,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::gate::GatePolicy;
 use crate::rfq::{Amount, FieldError};
@@ -31,6 +32,11 @@ pub struct NewQuote {
     pub timeline: String,
     pub payout_destination: PayoutDestination,
     pub channel: ChannelParams,
+    /// The 402-gated URL acceptance opens the MPP session against (jude's
+    /// commission-flow draft-00 §4): deposit = price, terms from `channel`,
+    /// payee = `payout_destination`.
+    #[schemars(length(min = 1), extend("format" = "uri"))]
+    pub engagement_endpoint: String,
     /// Defaults from studio config; buyers may strengthen per-project.
     #[serde(default = "GatePolicy::studio_default")]
     pub gate_policy: GatePolicy,
@@ -118,11 +124,21 @@ pub struct Quote {
     pub timeline: String,
     pub payout_destination: PayoutDestination,
     pub channel: ChannelParams,
+    pub engagement_endpoint: String,
     pub gate_policy: GatePolicy,
     /// `studio-core::gate::commitment_hash(&gate_policy)`, precomputed at
     /// issue time. Recorded again (and enforced) at the FUNDED transition —
     /// PLAN.md §2.1(4).
     pub policy_hash: String,
+    /// SHA-256 (hex) over the canonical JSON of the quote's immutable
+    /// commitment fields, in this exact order: id, rfq_id, price,
+    /// milestones, timeline, payout_destination, channel,
+    /// engagement_endpoint, policy_hash, expires_at (lifecycle fields —
+    /// status, created_at, lapsed_at, accepted_at — are excluded). Same
+    /// canonicalization as policy_hash. Session terms hash-commit the quote
+    /// through this value at accept, so what is funded is provably what was
+    /// quoted. Derived from the fields, never stored — it cannot go stale.
+    pub quote_hash: String,
     pub expires_at: DateTime<Utc>,
     pub status: QuoteStatus,
     pub created_at: DateTime<Utc>,
@@ -130,6 +146,25 @@ pub struct Quote {
     pub lapsed_at: Option<DateTime<Utc>>,
     /// Buyer acceptance instant. Set exactly once; never on a lapsed quote.
     pub accepted_at: Option<DateTime<Utc>>,
+}
+
+/// The immutable commitment fields of a quote, in the exact serialization
+/// order `quote_hash` documents. A serialize-only view: adding a lifecycle
+/// field to `Quote` cannot silently change the hash, and an external
+/// verifier can rebuild this object from the published schema description
+/// alone.
+#[derive(Serialize)]
+struct QuoteCommitment<'a> {
+    id: &'a str,
+    rfq_id: &'a str,
+    price: &'a Amount,
+    milestones: &'a [MilestoneSpec],
+    timeline: &'a str,
+    payout_destination: &'a PayoutDestination,
+    channel: &'a ChannelParams,
+    engagement_endpoint: &'a str,
+    policy_hash: &'a str,
+    expires_at: &'a DateTime<Utc>,
 }
 
 impl Quote {
@@ -141,6 +176,40 @@ impl Quote {
             self.status = QuoteStatus::Lapsed;
             self.lapsed_at = Some(self.expires_at);
         }
+        self
+    }
+
+    /// Compute the commitment hash from the immutable fields (see the
+    /// `quote_hash` field docs for the exact input). Lives here rather than
+    /// `studio-core` because the store derives it on every row read and
+    /// depends only on this crate — and pay-side verifiers get it from the
+    /// contract crate for free.
+    pub fn commitment_hash(&self) -> String {
+        let commitment = QuoteCommitment {
+            id: &self.id,
+            rfq_id: &self.rfq_id,
+            price: &self.price,
+            milestones: &self.milestones,
+            timeline: &self.timeline,
+            payout_destination: &self.payout_destination,
+            channel: &self.channel,
+            engagement_endpoint: &self.engagement_endpoint,
+            policy_hash: &self.policy_hash,
+            expires_at: &self.expires_at,
+        };
+        let canonical = serde_json::to_vec(&commitment).expect("QuoteCommitment serializes");
+        let digest = Sha256::digest(&canonical);
+        digest.iter().fold(String::with_capacity(64), |mut s, b| {
+            use std::fmt::Write;
+            write!(s, "{b:02x}").expect("writing to a String cannot fail");
+            s
+        })
+    }
+
+    /// Fill `quote_hash` from the other fields — the single sealing step
+    /// every constructor path (issuance, row read) goes through.
+    pub fn with_commitment_hash(mut self) -> Quote {
+        self.quote_hash = self.commitment_hash();
         self
     }
 }
@@ -196,6 +265,24 @@ impl NewQuote {
 
         if self.timeline.trim().is_empty() {
             push("timeline", "must be non-empty");
+        }
+
+        match url::Url::parse(&self.engagement_endpoint) {
+            Err(_) => push(
+                "engagement_endpoint",
+                "must be an absolute URL (the 402-gated endpoint acceptance \
+                 opens the session against)",
+            ),
+            Ok(parsed) => {
+                if !matches!(parsed.scheme(), "http" | "https") {
+                    push(
+                        "engagement_endpoint",
+                        "must use the http or https scheme (sessions open over HTTP 402)",
+                    );
+                } else if parsed.host_str().is_none() {
+                    push("engagement_endpoint", "must include a host");
+                }
+            }
         }
 
         match &self.payout_destination {
@@ -302,6 +389,7 @@ mod tests {
                 grace_seconds: 172_800,
                 idle_timeout_seconds: 604_800,
             },
+            engagement_endpoint: "https://scarce.sh/api/v1/engagements/rfq-1".into(),
             gate_policy: GatePolicy::studio_default(),
             expires_at: ts("2026-08-08T15:00:00Z"),
         }
@@ -451,6 +539,7 @@ mod tests {
                 { "recipient": "CrewAgentA111111111111111111111111111111111", "bps": 10000 }
             ]},
             "channel": { "idle_timeout_seconds": 3600 },
+            "engagement_endpoint": "https://scarce.sh/api/v1/engagements/rfq-1",
             "expires_at": "2026-08-08T15:00:00Z"
         });
         let q: NewQuote = serde_json::from_value(json).unwrap();
@@ -473,9 +562,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn effective_status_derives_lapsed_past_expiry() {
-        let q = Quote {
+    fn record() -> Quote {
+        Quote {
             id: "q-1".into(),
             rfq_id: "r-1".into(),
             price: Amount {
@@ -489,14 +577,73 @@ mod tests {
                 grace_seconds: 1,
                 idle_timeout_seconds: 1,
             },
+            engagement_endpoint: "https://scarce.sh/api/v1/engagements/r-1".into(),
             gate_policy: GatePolicy::studio_default(),
             policy_hash: "policy-hash-set-at-issue-time".into(),
+            quote_hash: String::new(),
             expires_at: ts("2026-08-02T00:00:00Z"),
             status: QuoteStatus::Quoted,
             created_at: ts("2026-08-01T00:00:00Z"),
             lapsed_at: None,
             accepted_at: None,
-        };
+        }
+        .with_commitment_hash()
+    }
+
+    #[test]
+    fn missing_or_malformed_engagement_endpoint_is_rejected() {
+        for bad in ["", "not a url", "ftp://scarce.sh/x", "scarce.sh/relative"] {
+            let mut q = valid();
+            q.engagement_endpoint = bad.into();
+            assert!(
+                errors_of(q).contains(&"engagement_endpoint".to_string()),
+                "should reject {bad:?}"
+            );
+        }
+        // and the field is required on the wire, not defaulted
+        let mut json = serde_json::to_value(valid()).unwrap();
+        json.as_object_mut().unwrap().remove("engagement_endpoint");
+        assert!(serde_json::from_value::<NewQuote>(json).is_err());
+    }
+
+    #[test]
+    fn commitment_hash_is_deterministic_and_covers_the_commitment_fields() {
+        let q = record();
+        assert_eq!(q.quote_hash, q.commitment_hash());
+        assert_eq!(q.quote_hash.len(), 64);
+        assert_eq!(q.quote_hash, record().quote_hash);
+
+        // lifecycle fields do not move the hash…
+        let mut accepted = record();
+        accepted.status = QuoteStatus::Accepted;
+        accepted.accepted_at = Some(ts("2026-08-01T12:00:00Z"));
+        assert_eq!(accepted.commitment_hash(), q.quote_hash);
+
+        // …commitment fields do
+        for mutated in [
+            {
+                let mut m = record();
+                m.price.amount = 2;
+                m
+            },
+            {
+                let mut m = record();
+                m.engagement_endpoint = "https://scarce.sh/api/v1/engagements/other".into();
+                m
+            },
+            {
+                let mut m = record();
+                m.policy_hash = "different".into();
+                m
+            },
+        ] {
+            assert_ne!(mutated.commitment_hash(), q.quote_hash);
+        }
+    }
+
+    #[test]
+    fn effective_status_derives_lapsed_past_expiry() {
+        let q = record();
 
         let live = q.clone().at(ts("2026-08-01T23:59:59Z"));
         assert_eq!(live.status, QuoteStatus::Quoted);

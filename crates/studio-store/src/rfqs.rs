@@ -11,8 +11,9 @@ pub async fn insert(pool: &SqlitePool, rfq: &Rfq) -> Result<()> {
     sqlx::query(
         "INSERT INTO rfqs (id, query, product, monetization, competition,
                            budget_amount, budget_mint, buyer_npub,
-                           buyer_signature, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                           buyer_solana_pubkey, buyer_signature, brief,
+                           created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
     )
     .bind(&rfq.id)
     .bind(&rfq.query)
@@ -22,7 +23,13 @@ pub async fn insert(pool: &SqlitePool, rfq: &Rfq) -> Result<()> {
     .bind(rfq.budget_ceiling.as_ref().map(|b| b.amount as i64))
     .bind(rfq.budget_ceiling.as_ref().map(|b| b.mint.clone()))
     .bind(&rfq.buyer_npub)
+    .bind(&rfq.buyer_solana_pubkey)
     .bind(&rfq.buyer_signature)
+    .bind(
+        rfq.brief
+            .as_ref()
+            .map(|b| serde_json::to_string(b).expect("brief serializes")),
+    )
     .bind(rfq.created_at.to_rfc3339())
     .execute(pool)
     .await?;
@@ -81,7 +88,15 @@ fn from_row(row: sqlx::sqlite::SqliteRow) -> Result<Rfq> {
             }
         },
         buyer_npub: row.get("buyer_npub"),
+        buyer_solana_pubkey: row.get("buyer_solana_pubkey"),
         buyer_signature: row.get("buyer_signature"),
+        brief: row
+            .get::<Option<String>, _>("brief")
+            .map(|raw| {
+                serde_json::from_str(&raw)
+                    .map_err(|e| crate::StoreError::Corrupt(format!("rfqs.brief: {e}")))
+            })
+            .transpose()?,
         created_at: DateTime::parse_from_rfc3339(&created_at)
             .map_err(|e| crate::StoreError::Corrupt(format!("rfqs.created_at: {e}")))?
             .with_timezone(&Utc),
@@ -103,8 +118,27 @@ mod tests {
                 amount: 250_000_000,
                 mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".into(),
             }),
-            buyer_npub: "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0nqr65xpy".into(),
+            buyer_npub: Some(
+                "npub1cscv4empnwmfyurd6utlwmq3h3dzpesjyhtttt6rk69hndk9w0nqr65xpy".into(),
+            ),
+            buyer_solana_pubkey: Some("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".into()),
             buyer_signature: Some("recorded-not-verified".into()),
+            brief: Some(studio_types::Brief {
+                example_exchange: studio_types::ExampleExchange {
+                    request: serde_json::json!({ "program_id": "JUP6" }),
+                    response: serde_json::json!({ "p50_lamports": 12000 }),
+                },
+                freshness: studio_types::Freshness::Cached { ttl_seconds: 30 },
+                upstream_dependencies: vec![],
+                volume: studio_types::VolumeBand {
+                    calls_per_month: 50_000,
+                    avg_request_bytes: 128,
+                    avg_response_bytes: 512,
+                },
+                compute_class: studio_types::ComputeClass::Cpu,
+                state: studio_types::StateRequirement::Cache,
+                interface: studio_types::InterfaceKind::RequestResponse,
+            }),
             created_at: DateTime::parse_from_rfc3339(created_at)
                 .unwrap()
                 .with_timezone(&Utc),
