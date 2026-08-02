@@ -99,7 +99,7 @@ fn default_grace_seconds() -> u64 {
 /// quote never lapses; the engagement it started owns the clock from there).
 /// ACCEPTED stands in for FUNDED while payments are stubbed (PLAN.md §6
 /// override path, ludovic 2026-08-01).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum QuoteStatus {
     Quoted,
@@ -108,7 +108,8 @@ pub enum QuoteStatus {
 }
 
 /// An issued quote — what the quote endpoints return.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(title = "Quote record")]
 pub struct Quote {
     pub id: String,
     pub rfq_id: String,

@@ -16,6 +16,7 @@ pub async fn handler() -> impl IntoResponse {
             "service": "scarce-studio",
             "version": env!("CARGO_PKG_VERSION"),
             "endpoints": [
+                { "method": "GET",  "path": "/openapi.json",          "description": "OpenAPI 3.1 description of this surface" },
                 { "method": "GET",  "path": "/api/v1",                "description": "this index" },
                 { "method": "GET",  "path": "/api/v1/schemas/{name}", "description": "JSON Schema of a wire type" },
                 { "method": "POST", "path": "/api/v1/rfqs",           "description": "capture a demand record (schema: rfq)" },
