@@ -18,6 +18,7 @@ use sqlx::SqlitePool;
 use studio_types::{Quote, Rfq};
 
 pub mod endpoints;
+pub mod openapi;
 pub mod web;
 
 /// Buzz Desktop download link the project page offers — the canonical
@@ -72,6 +73,9 @@ pub fn router(state: Arc<AppState>) -> Router {
     // `/api/v1` so the contract can evolve without breaking callers.
     Router::new()
         .route("/healthz", get(healthz))
+        // Unversioned like /healthz: the well-known discovery location a
+        // gateway (or any client) probes first.
+        .route("/openapi.json", get(endpoints::get_openapi::handler))
         .route("/api/v1", get(endpoints::api_index::handler))
         .route(
             "/api/v1/schemas/{name}",

@@ -64,7 +64,8 @@ pub struct Amount {
 }
 
 /// A captured demand record — what `POST /api/v1/rfqs` returns.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(title = "RFQ record")]
 pub struct Rfq {
     pub id: String,
     pub query: String,
@@ -81,9 +82,11 @@ pub struct Rfq {
 
 /// One field-level validation failure — serialized into 422 bodies.
 /// `field` is a path (e.g. `milestones[1].amount`), so it is owned.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct FieldError {
+    /// Path of the offending field (e.g. `milestones[1].amount`).
     pub field: String,
+    /// What a valid value looks like — actionable, not a bare "invalid".
     pub message: String,
 }
 

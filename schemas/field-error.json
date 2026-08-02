@@ -1,0 +1,21 @@
+{
+  "$id": "https://scarce.studio/schemas/field-error.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One field-level validation failure — serialized into 422 bodies.\n`field` is a path (e.g. `milestones[1].amount`), so it is owned.",
+  "properties": {
+    "field": {
+      "description": "Path of the offending field (e.g. `milestones[1].amount`).",
+      "type": "string"
+    },
+    "message": {
+      "description": "What a valid value looks like — actionable, not a bare \"invalid\".",
+      "type": "string"
+    }
+  },
+  "required": [
+    "field",
+    "message"
+  ],
+  "title": "FieldError",
+  "type": "object"
+}

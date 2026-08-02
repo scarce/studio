@@ -15,9 +15,12 @@ const ID_BASE: &str = "https://scarce.studio/schemas";
 pub fn all() -> Vec<(&'static str, serde_json::Value)> {
     vec![
         ("rfq", rfq()),
+        ("rfq-record", rfq_record()),
         ("quote", quote()),
+        ("quote-record", quote_record()),
         ("gate-policy", gate_policy()),
         ("project", project()),
+        ("field-error", field_error()),
     ]
 }
 
@@ -36,6 +39,26 @@ pub fn rfq() -> serde_json::Value {
 /// inlined under `$defs` rather than `$ref`'d across files.
 pub fn quote() -> serde_json::Value {
     finalize("quote", schema_for!(crate::quote::NewQuote))
+}
+
+/// `schemas/rfq-record.json` — the captured demand record, as returned by
+/// `POST /api/v1/rfqs` and the RFQ reads (submission + server-assigned
+/// `id` / `created_at`).
+pub fn rfq_record() -> serde_json::Value {
+    finalize("rfq-record", schema_for!(crate::rfq::Rfq))
+}
+
+/// `schemas/quote-record.json` — the issued quote, as returned by the quote
+/// endpoints (submission + identity, `policy_hash`, status, lifecycle
+/// timestamps).
+pub fn quote_record() -> serde_json::Value {
+    finalize("quote-record", schema_for!(crate::quote::Quote))
+}
+
+/// `schemas/field-error.json` — one field-level validation failure; 422
+/// bodies are `{ "errors": [field-error, …] }`.
+pub fn field_error() -> serde_json::Value {
+    finalize("field-error", schema_for!(crate::rfq::FieldError))
 }
 
 /// `schemas/gate-policy.json` — the standalone gate-policy contract, for

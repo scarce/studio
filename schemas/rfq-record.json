@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "Amount": {
+      "additionalProperties": false,
+      "description": "Token amount in minor units of `mint`.",
+      "properties": {
+        "amount": {
+          "description": "Token amount in minor units of `mint`.",
+          "format": "uint64",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "mint": {
+          "description": "SPL mint address (e.g. USDC). Free-form here; enforced at quote time.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "mint"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://scarce.studio/schemas/rfq-record.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A captured demand record — what `POST /api/v1/rfqs` returns.",
+  "properties": {
+    "budget_ceiling": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Amount"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "buyer_npub": {
+      "type": "string"
+    },
+    "buyer_signature": {
+      "description": "Reserved (see `NewRfq::buyer_signature`); recorded, not verified.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "competition": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "created_at": {
+      "description": "RFC 3339, UTC, server-assigned at capture.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "monetization": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "product": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "query": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "query",
+    "competition",
+    "buyer_npub",
+    "created_at"
+  ],
+  "title": "RFQ record",
+  "type": "object"
+}
